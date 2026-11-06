@@ -46,7 +46,10 @@ fn repo_at_depth_3_is_found_with_max_depth_3() {
     let root = root_of(&tmp);
     make_repo(&root.join("x/y/z"));
 
-    assert_eq!(discover(std::slice::from_ref(&root), 3), vec![root.join("x/y/z")]);
+    assert_eq!(
+        discover(std::slice::from_ref(&root), 3),
+        vec![root.join("x/y/z")]
+    );
 }
 
 #[test]
@@ -65,7 +68,10 @@ fn repo_nested_inside_another_repo_is_not_returned() {
     make_repo(&root.join("outer"));
     make_repo(&root.join("outer/inner"));
 
-    assert_eq!(discover(std::slice::from_ref(&root), 3), vec![root.join("outer")]);
+    assert_eq!(
+        discover(std::slice::from_ref(&root), 3),
+        vec![root.join("outer")]
+    );
 }
 
 #[test]

@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 3, Git core modules 3 to 6 (fetch, feed, update, errors). Phase 2 is done.
+Current step: Phase 3, Git core modules 5 and 6 (update, errors). Fetch and feed are done.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -39,7 +39,7 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [ ] Project skeleton (Tauri app, tray, main window)
 - [x] Find repos in the chosen folders (core: discover)
 - [x] Status per repo: behind, ahead, unsaved changes (core: status)
-- [ ] "What's new" feed since the last look
+- [x] "What's new" feed since the last look (core: fetch, feed)
 - [ ] Desktop notifications
 - [ ] Update button: safe, unsaved changes, diverged, conflict
 - [ ] Undo after update
