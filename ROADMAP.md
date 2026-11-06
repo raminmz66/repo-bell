@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 3, project skeleton (Tauri app with tray and main window, using the finished Git core in crates/core).
+Current step: Phase 3, project skeleton (Tauri app with tray and main window, using the finished Git core in crates/core). Decide first: the UI stack for the window (plain HTML and TypeScript, React, or Svelte), and where the app stores settings and "last seen" per repo.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 

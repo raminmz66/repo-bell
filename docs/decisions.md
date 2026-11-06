@@ -77,7 +77,7 @@ Tauri does not report clicks on the tray icon on Linux, so a click cannot open a
 
 Clicking a repo line opens the main window on that repo. A number badge is likely not possible, so the icon changes instead: a bell when all is quiet, a bell with a dot when there is news, and a crossed bell when RepoBell can't check. On Linux the icon may only show once a menu is set.
 
-A tray test on Ubuntu 22.04 (GNOME on X11, Tauri 2.12.5) confirmed this plan on 2026-11-06. The icon shows and switches between three states. A left click opens the menu. Menu text updates live, even while the menu is open. "Open RepoBell" opens the window. No tray icon events reached the app, as expected.
+A tray test on Ubuntu 22.04 (GNOME on X11, Tauri 2.12.5) confirmed this plan on 2026-11-06. The icon shows and switches between three states. A left click opens the menu. Menu text updates live, even while the menu is open. "Open RepoBell" opens the window. No tray icon events reached the app, as expected. Build notes from that test: use `TrayIconBuilder` with `show_menu_on_left_click(true)`, change icons with `tray.set_icon`, change text with `MenuItem::set_text`, and make every icon PNG 32-bit RGBA, because `generate_context!` rejects other PNGs.
 
 ## Design reviews
 
