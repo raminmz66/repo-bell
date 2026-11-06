@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RepoBell empty and error states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0;font-family:'Ubuntu',system-ui,sans-serif;color:#1B1B1F}
+a{color:#1F5FD1}a:hover{color:#174AA6}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 1560px; height: 520px; box-sizing: border-box; padding: 20px 20px; display: flex; gap: 40px; background: #F6F6F4; font-family: 'Ubuntu', system-ui, sans-serif; color: #1B1B1F">
+
+  <div style="width: 480px; height: 480px; box-sizing: border-box; display: flex; flex-direction: column; background: #F6F6F4; border: 1px solid #D9D9D5; border-radius: 12px; overflow: hidden">
+    <header style="height: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #EBEBE8; border-bottom: 1px solid #D9D9D5; font-size: 15px; font-weight: 700">RepoBell</header>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#5B5B66" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">All quiet</h1>
+      <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #5B5B66">Your 5 repos are up to date.<br>Last checked 2 min ago.</p>
+    </div>
+    <div style="padding: 0 16px 16px">
+      <button aria-expanded="false" style="width: 100%; height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #E3E3E0; border-radius: 10px; background: #FFFFFF; color: #3D3D45; font-size: 14px; text-align: left; cursor: pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+        <span style="flex-grow: 1">Up to date</span>
+        <span style="font-size: 13px; color: #5B5B66">5 repos</span>
+      </button>
+    </div>
+  </div>
+
+  <div style="width: 480px; height: 480px; box-sizing: border-box; display: flex; flex-direction: column; background: #F6F6F4; border: 1px solid #D9D9D5; border-radius: 12px; overflow: hidden">
+    <header style="height: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #EBEBE8; border-bottom: 1px solid #D9D9D5; font-size: 15px; font-weight: 700">RepoBell</header>
+    <div role="alert" style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#5B5B66" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-9.3-5"></path><path d="M6 8c0 7-3 9-3 9h14"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path><path d="M3 3l18 18"></path></svg>
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">Can't check your repos</h1>
+      <p style="margin: 0; max-width: 340px; font-size: 14px; line-height: 1.4; color: #5B5B66">RepoBell can't reach the server. Check your internet connection. Your repos were last checked 1 h ago.</p>
+      <button style="margin-top: 6px; height: 40px; padding: 0 16px; border: 1px solid #1F5FD1; border-radius: 8px; background: #FFFFFF; color: #1F5FD1; font-size: 14px; font-weight: 500; cursor: pointer">Try again</button>
+    </div>
+  </div>
+
+  <div style="width: 480px; height: 480px; box-sizing: border-box; display: flex; flex-direction: column; background: #F6F6F4; border: 1px solid #D9D9D5; border-radius: 12px; overflow: hidden">
+    <header style="height: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #EBEBE8; border-bottom: 1px solid #D9D9D5; font-size: 15px; font-weight: 700">RepoBell</header>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; padding: 16px">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">2 repos can't be checked</h1>
+
+      <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">docs-site</h2>
+          <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #FBE7E5; color: #A12A20" title="RepoBell could not check this repo">Can't check</span>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #3D3D45">Git can't log in to the server. Your login may have expired.</p>
+        <button style="align-self: flex-end; height: 40px; padding: 0 16px; border: 1px solid #1F5FD1; border-radius: 8px; background: #FFFFFF; color: #1F5FD1; font-size: 14px; font-weight: 500; cursor: pointer">Try again</button>
+      </article>
+
+      <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">old-website</h2>
+          <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #FBE7E5; color: #A12A20" title="RepoBell could not check this repo">Can't check</span>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #3D3D45">Folder not found. It may have been moved or deleted.</p>
+        <button style="align-self: flex-end; height: 40px; padding: 0 16px; border: 1px solid #C9C9C4; border-radius: 8px; background: #FFFFFF; color: #1B1B1F; font-size: 14px; font-weight: 500; cursor: pointer">Remove</button>
+      </article>
+
+      <button aria-expanded="false" style="height: 44px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #E3E3E0; border-radius: 10px; background: #FFFFFF; color: #3D3D45; font-size: 14px; text-align: left; cursor: pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+        <span style="flex-grow: 1">Up to date</span>
+        <span style="font-size: 13px; color: #5B5B66">3 repos</span>
+      </button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1560,"height":520}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RepoBell main window</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0;font-family:'Ubuntu',system-ui,sans-serif;color:#1B1B1F}
+a{color:#1F5FD1}a:hover{color:#174AA6}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 480px; height: 860px; box-sizing: border-box; display: flex; flex-direction: column; background: #F6F6F4; border: 1px solid #D9D9D5; border-radius: 12px; overflow: hidden; font-family: 'Ubuntu', system-ui, sans-serif; color: #1B1B1F">
+
+  <header style="height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; background: #EBEBE8; border-bottom: 1px solid #D9D9D5">
+    <button aria-label="Check now" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #3D3D45; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 4v5h-5"></path></svg>
+    </button>
+    <div style="flex-grow: 1; text-align: center; font-size: 15px; font-weight: 700">RepoBell</div>
+    <button aria-label="Settings" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #3D3D45; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+    </button>
+    <button aria-label="Close window" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #3D3D45; cursor: pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </button>
+  </header>
+
+  <div style="flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 16px">
+
+    <div style="display: flex; align-items: center; gap: 10px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+      <div style="flex-grow: 1">
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700">3 repos have news</h1>
+        <p style="margin: 2px 0 0; font-size: 13px; color: #5B5B66">Since you last looked, yesterday at 18:40</p>
+      </div>
+    </div>
+
+    <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">web-app</h2>
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #1F5FD1; border-radius: 8px; background: #FFFFFF; color: #1F5FD1; font-size: 14px; font-weight: 500; cursor: pointer">Update</button>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #E6EEFC; color: #1A4FB0" title="The team made 4 changes you don&#39;t have yet">Behind by 4</span>
+      </div>
+      <p style="margin: 0; font-size: 14px; line-height: 1.4">Sara added 4 changes to the main version <span style="color: #5B5B66">· 25 min ago</span></p>
+      <ul style="margin: 0; padding: 0 0 0 18px; font-size: 13px; line-height: 1.5; color: #3D3D45">
+        <li>Fix login timeout</li>
+        <li>Update header spacing</li>
+        <li style="color: #5B5B66">and 2 more</li>
+      </ul>
+      <button aria-expanded="false" style="align-self: flex-start; height: 36px; display: flex; align-items: center; gap: 4px; margin: -4px 0 -6px -6px; padding: 0 8px 0 6px; border: none; border-radius: 6px; background: transparent; color: #5B5B66; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>6 files changed</button>
+    </article>
+
+    <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">design-system</h2>
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #1F5FD1; border-radius: 8px; background: #FFFFFF; color: #1F5FD1; font-size: 14px; font-weight: 500; cursor: pointer">Update</button>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #E6EEFC; color: #1A4FB0" title="The team made 1 change you don&#39;t have yet">Behind by 1</span>
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #FCEEDD; color: #84470C" title="You edited files that are not committed yet">Has unsaved changes</span>
+      </div>
+      <p style="margin: 0; font-size: 14px; line-height: 1.4">Ali added 2 changes to the main version <span style="color: #5B5B66">· 1 h ago</span></p>
+      <ul style="margin: 0; padding: 0 0 0 18px; font-size: 13px; line-height: 1.5; color: #3D3D45">
+        <li>New bell icon</li>
+        <li>Update brand colors</li>
+      </ul>
+      <button aria-expanded="false" style="align-self: flex-start; height: 36px; display: flex; align-items: center; gap: 4px; margin: -4px 0 -6px -6px; padding: 0 8px 0 6px; border: none; border-radius: 6px; background: transparent; color: #5B5B66; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>2 files changed</button>
+    </article>
+
+    <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">api-server</h2>
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #1F5FD1; border-radius: 8px; background: #FFFFFF; color: #1F5FD1; font-size: 14px; font-weight: 500; cursor: pointer">Update</button>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #E6EEFC; color: #1A4FB0" title="The team made 1 change you don&#39;t have yet">Behind by 1</span>
+      </div>
+      <p style="margin: 0; font-size: 14px; line-height: 1.4">Nima added 1 change to the main version <span style="color: #5B5B66">· 3 h ago</span></p>
+      <ul style="margin: 0; padding: 0 0 0 18px; font-size: 13px; line-height: 1.5; color: #3D3D45">
+        <li>Add a limit to login attempts</li>
+      </ul>
+      <button aria-expanded="false" style="align-self: flex-start; height: 36px; display: flex; align-items: center; gap: 4px; margin: -4px 0 -6px -6px; padding: 0 8px 0 6px; border: none; border-radius: 6px; background: transparent; color: #5B5B66; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>2 files changed</button>
+    </article>
+
+    <button aria-expanded="false" style="height: 44px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #E3E3E0; border-radius: 10px; background: #FFFFFF; color: #3D3D45; font-size: 14px; text-align: left; cursor: pointer">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      <span style="flex-grow: 1">Up to date</span>
+      <span style="font-size: 13px; color: #5B5B66">2 repos</span>
+    </button>
+  </div>
+
+  <footer style="height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px; border-top: 1px solid #E3E3E0; background: #FFFFFF">
+    <button style="height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #3D3D45; font-size: 14px; cursor: pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      Add folder
+    </button>
+    <button style="height: 40px; padding: 0 16px; border: 1px solid #C9C9C4; border-radius: 8px; background: #FFFFFF; color: #1B1B1F; font-size: 14px; font-weight: 500; cursor: pointer">Mark all as seen</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":480,"height":860}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

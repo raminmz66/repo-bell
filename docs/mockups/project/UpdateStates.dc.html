@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RepoBell update states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0;font-family:'Ubuntu',system-ui,sans-serif;color:#1B1B1F}
+a{color:#1F5FD1}a:hover{color:#174AA6}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 1000px; height: 800px; box-sizing: border-box; padding: 40px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 40px; row-gap: 36px; align-content: start; background: #F6F6F4; font-family: 'Ubuntu', system-ui, sans-serif; color: #1B1B1F">
+
+  <section style="display: flex; flex-direction: column; gap: 10px">
+    <div>
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">1. Safe update</h2>
+      <p style="margin: 2px 0 0; font-size: 13px; color: #5B5B66">No unsaved changes, no own commits. One click, then Undo. Undo greys out once the user changes files.</p>
+    </div>
+    <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">web-app</h3>
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #EEEEEC; color: #45454D">Up to date</span>
+      </div>
+      <div role="status" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: #EAF4EC">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+        <p style="margin: 0; flex-grow: 1; font-size: 14px; color: #1E4D2B">Updated. 4 changes downloaded.</p>
+        <button style="height: 40px; padding: 0 14px; border: 1px solid #9CC4A6; border-radius: 8px; background: #FFFFFF; color: #1E4D2B; font-size: 14px; font-weight: 500; cursor: pointer">Undo</button>
+      </div>
+    </article>
+    <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">web-app, later</h3>
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #FCEEDD; color: #84470C" title="You edited files that are not committed yet">Has unsaved changes</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: #F3F3F1">
+        <div style="flex-grow: 1">
+          <p style="margin: 0; font-size: 14px; color: #3D3D45">Updated 20 min ago.</p>
+          <p style="margin: 2px 0 0; font-size: 13px; color: #5B5B66">You changed files since the update.</p>
+        </div>
+        <button disabled style="height: 40px; padding: 0 14px; border: 1px solid #DADAD6; border-radius: 8px; background: #F3F3F1; color: #6E6E78; font-size: 14px; font-weight: 500; cursor: not-allowed">Undo</button>
+      </div>
+    </article>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: 10px">
+    <div>
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">2. Unsaved changes</h2>
+      <p style="margin: 2px 0 0; font-size: 13px; color: #5B5B66">Asks before setting work aside. Nothing runs until the user agrees.</p>
+    </div>
+    <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">design-system</h3>
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #E6EEFC; color: #1A4FB0" title="The team made 1 change you don&#39;t have yet">Behind by 1</span>
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #FCEEDD; color: #84470C" title="You edited files that are not committed yet">Has unsaved changes</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: #FAF7F2; border: 1px solid #EBDDC8">
+        <p style="margin: 0; font-size: 14px; font-weight: 500">You have unsaved changes.</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #3D3D45">Set them aside, update, then bring them back?</p>
+        <p style="margin: 0; font-size: 13px; color: #5B5B66">This will download 1 change from Ali.</p>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px">
+          <button style="height: 40px; padding: 0 14px; border: none; border-radius: 8px; background: transparent; color: #3D3D45; font-size: 14px; cursor: pointer">Cancel</button>
+          <button style="height: 40px; padding: 0 16px; border: none; border-radius: 8px; background: #1F5FD1; color: #FFFFFF; font-size: 14px; font-weight: 500; cursor: pointer">Set aside and update</button>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: 10px">
+    <div>
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">3. Both sides changed</h2>
+      <p style="margin: 2px 0 0; font-size: 13px; color: #5B5B66">The user has own commits and the team pushed too. A normal merge, aborted if it fails.</p>
+    </div>
+    <article style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">mobile-app</h3>
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #E6EEFC; color: #1A4FB0" title="The team made 2 changes you don&#39;t have yet">Behind by 2</span>
+        <span style="position: relative; display: inline-flex">
+          <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #EEEEEC; color: #45454D; outline: 2px solid #1F5FD1; outline-offset: 1px" title="You have 1 change the team doesn&#39;t have yet">Ahead by 1</span>
+          <span role="tooltip" style="position: absolute; top: calc(100% + 8px); right: 0; z-index: 2; width: 210px; padding: 8px 10px; border-radius: 6px; background: #1B1B1F; color: #FFFFFF; font-size: 12px; line-height: 1.4">You have 1 change the team doesn't have yet</span>
+        </span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: #F4F6FB; border: 1px solid #D5DEF0">
+        <p style="margin: 0; font-size: 14px; font-weight: 500">Your work and the team's work both changed.</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #3D3D45">RepoBell can combine them. If that fails, nothing is changed.</p>
+        <p style="margin: 0; font-size: 13px; color: #5B5B66">This will download 2 changes and combine them with your 1 change.</p>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px">
+          <button style="height: 40px; padding: 0 14px; border: none; border-radius: 8px; background: transparent; color: #3D3D45; font-size: 14px; cursor: pointer">Cancel</button>
+          <button style="height: 40px; padding: 0 16px; border: none; border-radius: 8px; background: #1F5FD1; color: #FFFFFF; font-size: 14px; font-weight: 500; cursor: pointer">Update and combine</button>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: 10px">
+    <div>
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">4. Conflict</h2>
+      <p style="margin: 2px 0 0; font-size: 13px; color: #5B5B66">Always aborted and restored. Each file opens in the editor.</p>
+    </div>
+    <article style="background: #FFFFFF; border: 1.5px solid #C4372B; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 700; flex-grow: 1">web-app</h3>
+        <span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: #E6EEFC; color: #1A4FB0" title="The team made 3 changes you don&#39;t have yet">Behind by 3</span>
+      </div>
+      <div role="alert" style="display: flex; gap: 10px; align-items: flex-start">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A12A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.5"></path></svg>
+        <div>
+          <p style="margin: 0; font-size: 14px; font-weight: 500; color: #A12A20">Update stopped. Nothing was changed.</p>
+          <p style="margin: 4px 0 0; font-size: 14px; line-height: 1.4; color: #3D3D45">These files were changed by you and by Sara:</p>
+        </div>
+      </div>
+      <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border: 1px solid #E3E3E0; border-radius: 8px">
+        <li style="display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 14px; border-bottom: 1px solid #E3E3E0">
+          <span style="flex-grow: 1; font-size: 13px; font-family: 'Ubuntu Mono', ui-monospace, monospace">src/styles/button.css</span>
+          <button style="height: 40px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #1F5FD1; font-size: 14px; font-weight: 500; cursor: pointer">Open in editor</button>
+        </li>
+        <li style="display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 14px">
+          <span style="flex-grow: 1; font-size: 13px; font-family: 'Ubuntu Mono', ui-monospace, monospace">src/pages/login.tsx</span>
+          <button style="height: 40px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #1F5FD1; font-size: 14px; font-weight: 500; cursor: pointer">Open in editor</button>
+        </li>
+      </ul>
+      <div style="display: flex; justify-content: flex-end">
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #C9C9C4; border-radius: 8px; background: #FFFFFF; color: #1B1B1F; font-size: 14px; font-weight: 500; cursor: pointer">Close</button>
+      </div>
+    </article>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
