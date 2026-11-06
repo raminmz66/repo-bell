@@ -16,6 +16,10 @@ RepoBell uses Tauri, with a Rust backend and a web UI. The app runs all day, so 
 
 The name is RepoBell. GitGlance and RepoLens were already used by several Git tools. No project called RepoBell turned up in web searches. The nearest name is RepoBee, a command-line tool for teachers. Before release, check npm, crates.io, a domain and the GitHub org.
 
+## Checking for news
+
+RepoBell checks every 5 minutes by default. Settings offers 1, 5, 15, 30 and 60 minutes, and "Check now" is always available. Each check fetches only the main branch, and repos are checked one after another. After an error the wait doubles (5, 10, 20 minutes and so on) until a check works again. This keeps news fresh without heavy network use or battery drain.
+
 ## v1 features
 
 - Find repos in folders the user chooses.
@@ -52,6 +56,8 @@ On first run RepoBell suggests folders before asking. It looks in common places 
 Settings shows one list grouped by folder. Each folder is a header with Remove, and its repos sit under it. Each repo has a notify switch and a small menu with "Stop watching", so one repo can be dropped without removing its folder.
 
 The editor list shows the editors RepoBell finds on the computer (VS Code, JetBrains IDEs, Sublime Text, Ubuntu's text editor) plus "System default app", which covers every other editor. Picking any app or typing a custom command can come later if people ask.
+
+RepoBell finds editors by reading the `.desktop` files that Ubuntu's app menu uses (system, user, Snap and Flatpak locations) and matching known editors. That finds apt, Snap, Flatpak and JetBrains Toolbox installs alike. It opens files through the desktop launcher, and "System default app" uses `xdg-open`.
 
 ## Notifications
 

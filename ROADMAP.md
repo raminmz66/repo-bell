@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 2, install Rust and the Tauri system packages, then the tray test on Ubuntu 22.04.
+Current step: Phase 3 started early with the Git core (a Rust crate that needs no system packages). Waiting on Ramin: run the apt command for the Tauri system packages (needs sudo), then do the tray test.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -28,10 +28,11 @@ Each screen gets a senior UI/UX review before it is marked done.
 
 ## Phase 2: risk checks
 
-- [ ] Install Rust and the Tauri system packages
+- [x] Install Rust (rustup, in the home folder)
+- [ ] Install the Tauri system packages (Ramin runs it, needs sudo): `sudo apt update && sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
 - [ ] Build a small Tauri tray test on Ubuntu 22.04: the icon shows, the menu text updates live, the icon can switch between states
-- [ ] Decide how often to check repos without heavy network use
-- [ ] Decide how to detect the user's editor
+- [x] Decide how often to check repos without heavy network use
+- [x] Decide how to detect the user's editor
 
 ## Phase 3: build v1
 
