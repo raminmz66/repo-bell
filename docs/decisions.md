@@ -12,6 +12,10 @@ The closest existing tool is Time2Pull. It warns you when a remote changes, but 
 
 RepoBell uses Tauri, with a Rust backend and a web UI. The app runs all day, so low memory use matters more than build speed. It calls Git through the command line rather than a library, which is simpler and behaves the same as the user's own Git.
 
+## License and hosting
+
+RepoBell uses the MIT license. The code lives in the private GitHub repo `raminmz66/repo-bell` until the first release.
+
 ## Name
 
 The name is RepoBell. GitGlance and RepoLens were already used by several Git tools. No project called RepoBell turned up in web searches. The nearest name is RepoBee, a command-line tool for teachers. Before release, check npm, crates.io, a domain and the GitHub org.
@@ -72,6 +76,8 @@ Tauri does not report clicks on the tray icon on Linux, so a click cannot open a
 - Open RepoBell, Check now, Mark all as seen, Quit
 
 Clicking a repo line opens the main window on that repo. A number badge is likely not possible, so the icon changes instead: a bell when all is quiet, a bell with a dot when there is news, and a crossed bell when RepoBell can't check. On Linux the icon may only show once a menu is set.
+
+A tray test on Ubuntu 22.04 (GNOME on X11, Tauri 2.12.5) confirmed this plan on 2026-11-06. The icon shows and switches between three states. A left click opens the menu. Menu text updates live, even while the menu is open. "Open RepoBell" opens the window. No tray icon events reached the app, as expected.
 
 ## Design reviews
 

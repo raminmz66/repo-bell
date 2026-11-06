@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 2, tray test on Ubuntu 22.04. Git core modules 1 and 2 (discover, status) are done; next core modules are fetch, feed, update, errors.
+Current step: Phase 3, Git core modules 3 to 6 (fetch, feed, update, errors). Phase 2 is done.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -30,7 +30,7 @@ Each screen gets a senior UI/UX review before it is marked done.
 
 - [x] Install Rust (rustup, in the home folder)
 - [x] Install the Tauri system packages (Ramin runs it, needs sudo): `sudo apt update && sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
-- [ ] Build a small Tauri tray test on Ubuntu 22.04: the icon shows, the menu text updates live, the icon can switch between states
+- [x] Build a small Tauri tray test on Ubuntu 22.04: the icon shows, the menu text updates live, the icon can switch between states
 - [x] Decide how often to check repos without heavy network use
 - [x] Decide how to detect the user's editor
 
@@ -50,7 +50,8 @@ Each screen gets a senior UI/UX review before it is marked done.
 ## Phase 4: v1.1 and first release
 
 - [ ] Packages: .deb and AppImage, maybe Flatpak
-- [ ] License, README, contributing guide
+- [x] License (MIT) and a short README
+- [ ] Contributing guide
 - [ ] Check the name on npm, crates.io, a domain and GitHub
 - [ ] Feed grouped by person and day
 
