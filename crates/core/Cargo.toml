@@ -1,0 +1,10 @@
+[package]
+name = "repobell-core"
+version = "0.1.0"
+edition = "2021"
+description = "Git logic for RepoBell: find repos, read status, build the news feed, update safely."
+
+[dependencies]
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 3 started early with the Git core (a Rust crate that needs no system packages). Waiting on Ramin: run the apt command for the Tauri system packages (needs sudo), then do the tray test.
+Current step: Phase 2, tray test on Ubuntu 22.04. Git core modules 1 and 2 (discover, status) are done; next core modules are fetch, feed, update, errors.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -29,7 +29,7 @@ Each screen gets a senior UI/UX review before it is marked done.
 ## Phase 2: risk checks
 
 - [x] Install Rust (rustup, in the home folder)
-- [ ] Install the Tauri system packages (Ramin runs it, needs sudo): `sudo apt update && sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
+- [x] Install the Tauri system packages (Ramin runs it, needs sudo): `sudo apt update && sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
 - [ ] Build a small Tauri tray test on Ubuntu 22.04: the icon shows, the menu text updates live, the icon can switch between states
 - [x] Decide how often to check repos without heavy network use
 - [x] Decide how to detect the user's editor
@@ -37,8 +37,8 @@ Each screen gets a senior UI/UX review before it is marked done.
 ## Phase 3: build v1
 
 - [ ] Project skeleton (Tauri app, tray, main window)
-- [ ] Find repos in the chosen folders
-- [ ] Status per repo: behind, ahead, unsaved changes
+- [x] Find repos in the chosen folders (core: discover)
+- [x] Status per repo: behind, ahead, unsaved changes (core: status)
 - [ ] "What's new" feed since the last look
 - [ ] Desktop notifications
 - [ ] Update button: safe, unsaved changes, diverged, conflict
