@@ -103,8 +103,14 @@ fn fetch_main_respects_repo_core_ssh_command() {
     )
     .unwrap();
     fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
-    git(&repo, &["config", "core.sshCommand", script.to_str().unwrap()]);
-    git(&repo, &["remote", "add", "origin", "ssh://example.invalid/repo.git"]);
+    git(
+        &repo,
+        &["config", "core.sshCommand", script.to_str().unwrap()],
+    );
+    git(
+        &repo,
+        &["remote", "add", "origin", "ssh://example.invalid/repo.git"],
+    );
 
     let result = fetch_main(&repo, "main");
 

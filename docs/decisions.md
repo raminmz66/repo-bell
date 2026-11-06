@@ -49,7 +49,7 @@ Opening the repo folder and copying a message for a developer were both dropped.
 | Diverged | Offers "Update and combine", which is a normal merge. If the merge fails, it aborts. |
 | Conflict | Aborts and restores the previous state. Says "Nothing was changed" and lists the conflicting files, each with "Open in editor". |
 
-RepoBell never resolves conflicts itself and never switches branches. Before acting it shows a one-line preview ("This will download 4 changes"). After an update it offers Undo, using the reflog. Undo stays on the card until the repo changes or the window closes. RepoBell checks before undoing: if the user edited files or committed since the update, Undo is greyed out with "You changed files since the update".
+RepoBell never resolves conflicts itself and never switches branches. Before acting it shows a one-line preview ("This will download 4 changes"). After an update it offers Undo, using the reflog. Undo stays on the card until the repo changes or the window closes. It runs `git reset --keep`, which moves the commits back but keeps unsaved changes, and Git itself refuses when an unsaved change would be overwritten. So Undo is greyed out once the user commits or updates again. If their file edits clash with the undo, it stops and changes nothing ("You changed files since the update"). Edits to other files survive the undo. This is safer than checking for edits ourselves, because Git does the check.
 
 ## First run
 

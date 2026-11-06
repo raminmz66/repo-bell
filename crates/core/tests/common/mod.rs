@@ -1,6 +1,7 @@
 //! Helpers for integration tests. They drive the real `git` CLI.
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -90,4 +91,57 @@ pub fn push_new_commits(other: &Path, n: usize) {
         );
     }
     git(other, &["push"]);
+}
+
+/// Runs `git -C <dir> <args>`, expects it to fail, and returns stderr. Panics if it succeeds.
+pub fn git_expect_fail(dir: &Path, args: &[&str]) -> String {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .env("LC_ALL", "C")
+        .output()
+        .expect("failed to start git");
+    assert!(
+        !out.status.success(),
+        "git {:?} unexpectedly succeeded in {}",
+        args,
+        dir.display()
+    );
+    String::from_utf8_lossy(&out.stderr).into_owned()
+}
+
+/// Everything the user could lose: HEAD sha, `git status --porcelain` (untracked files included)
+/// and the bytes of every file in the working tree (`.git` excluded), keyed by relative path.
+pub type Snapshot = (String, String, BTreeMap<PathBuf, Vec<u8>>);
+
+pub fn snapshot(repo: &Path) -> Snapshot {
+    let head = git(repo, &["rev-parse", "HEAD"]).trim().to_string();
+    let status = git(repo, &["status", "--porcelain", "--untracked-files=all"]);
+    let mut files = BTreeMap::new();
+    collect_files(repo, repo, &mut files);
+    (head, status, files)
+}
+
+fn collect_files(root: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, Vec<u8>>) {
+    for entry in fs::read_dir(dir).expect("read dir") {
+        let entry = entry.expect("dir entry");
+        if entry.file_name() == ".git" {
+            continue;
+        }
+        let path = entry.path();
+        let kind = entry.file_type().expect("file type");
+        if kind.is_dir() {
+            collect_files(root, &path, out);
+        } else if kind.is_file() {
+            let rel = path.strip_prefix(root).expect("under root").to_path_buf();
+            out.insert(rel, fs::read(&path).expect("read file"));
+        }
+    }
+}
+
+/// Panics unless `git stash list` is empty.
+pub fn assert_no_stash(repo: &Path) {
+    let list = git(repo, &["stash", "list"]);
+    assert!(list.is_empty(), "stash list not empty: {list}");
 }
