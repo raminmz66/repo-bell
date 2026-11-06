@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 1, desktop notification mockup (one repo and several repos).
+Current step: Phase 1, settings and add-folder screen (including the editor choice and the per-repo Mute switch).
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -22,8 +22,8 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [x] Decide the mockup format (HTML in docs/mockups, published as an artifact)
 - [x] Redo the lost mockups: main window, Update states, empty states, tray menu
 - [x] UX review of the redone mockups, then apply the accepted fixes
-- [ ] Desktop notification (one repo and several repos)
-- [ ] Settings and add-folder screen, including the editor choice
+- [x] Desktop notification (one repo and several repos)
+- [ ] Settings and add-folder screen, including the editor choice and the per-repo Mute switch
 - [ ] First-run welcome, including the Ubuntu tray check
 
 ## Phase 2: risk checks
