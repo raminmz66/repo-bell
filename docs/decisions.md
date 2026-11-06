@@ -24,6 +24,7 @@ The name is RepoBell. GitGlance and RepoLens were already used by several Git to
 - Send desktop notifications.
 - Use plain words that designers understand, such as "the main version", "Behind by 4" and "Has unsaved changes". Status labels keep the short Git terms ("Behind by 4", "Ahead by 1"), and hovering a label explains it ("You have 1 change the team doesn't have yet").
 - Add an Update button (see below), with Undo.
+- Start at login, asked on the last first-run step.
 
 Errors show at two levels. When every check fails (usually no internet), the whole window says "Can't check your repos". When one repo fails, only its card shows "Can't check", with a plain reason ("Git can't log in to the server", "Folder not found") and one action ("Try again" or "Remove").
 
@@ -41,6 +42,10 @@ Opening the repo folder and copying a message for a developer were both dropped.
 | Conflict | Aborts and restores the previous state. Says "Nothing was changed" and lists the conflicting files, each with "Open in editor". |
 
 RepoBell never resolves conflicts itself and never switches branches. Before acting it shows a one-line preview ("This will download 4 changes"). After an update it offers Undo, using the reflog. Undo stays on the card until the repo changes or the window closes. RepoBell checks before undoing: if the user edited files or committed since the update, Undo is greyed out with "You changed files since the update".
+
+## First run
+
+On first run RepoBell suggests folders before asking. It looks in common places (`~/projects`, `~/code`, `~/work`, `~/Documents`), a few levels deep, skipping folders like `node_modules`, and shows what it found ("Found 5 repos in 2 folders"). The user unticks repos or adds more folders. Then RepoBell checks that the bell can show in the top bar. If it can't, it explains how to turn on the "Ubuntu AppIndicators" extension, and the user can continue without the bell. The last step has a ticked checkbox, "Start RepoBell when I log in", so RepoBell keeps running after a reboot. Start at login moved from v1.1 into v1 for this reason.
 
 ## Settings
 

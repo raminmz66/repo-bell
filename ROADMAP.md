@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 1, first-run welcome (including the Ubuntu tray check).
+Current step: Phase 2, install Rust and the Tauri system packages, then the tray test on Ubuntu 22.04.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -24,7 +24,7 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [x] UX review of the redone mockups, then apply the accepted fixes
 - [x] Desktop notification (one repo and several repos)
 - [x] Settings and add-folder screen, including the editor choice and the per-repo Mute switch
-- [ ] First-run welcome, including the Ubuntu tray check
+- [x] First-run welcome, including the Ubuntu tray check
 
 ## Phase 2: risk checks
 
@@ -43,12 +43,12 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [ ] Update button: safe, unsaved changes, diverged, conflict
 - [ ] Undo after update
 - [ ] Open conflicting files in the editor
+- [ ] First-run flow: suggested folders, tray check, start at login
 - [ ] Final review for regressions
 
 ## Phase 4: v1.1 and first release
 
 - [ ] Packages: .deb and AppImage, maybe Flatpak
-- [ ] Start at login
 - [ ] License, README, contributing guide
 - [ ] Check the name on npm, crates.io, a domain and GitHub
 - [ ] Feed grouped by person and day
