@@ -42,9 +42,15 @@ Opening the repo folder and copying a message for a developer were both dropped.
 
 RepoBell never resolves conflicts itself and never switches branches. Before acting it shows a one-line preview ("This will download 4 changes"). After an update it offers Undo, using the reflog. Undo stays on the card until the repo changes or the window closes. RepoBell checks before undoing: if the user edited files or committed since the update, Undo is greyed out with "You changed files since the update".
 
+## Settings
+
+Settings shows one list grouped by folder. Each folder is a header with Remove, and its repos sit under it. Each repo has a notify switch and a small menu with "Stop watching", so one repo can be dropped without removing its folder.
+
+The editor list shows the editors RepoBell finds on the computer (VS Code, JetBrains IDEs, Sublime Text, Ubuntu's text editor) plus "System default app", which covers every other editor. Picking any app or typing a custom command can come later if people ask.
+
 ## Notifications
 
-RepoBell sends one notification per check, never one per change. With one repo it names the repo, the person and the first change title. With several it says how many repos have news. The user's own changes never trigger a notification. A change counts as their own when its author email matches their Git email in that repo. Own changes still show in the feed as "You added 2 changes", so a second machine explains why it is behind. Every repo sends notifications by default. Each repo has a "Mute" switch in settings. A muted repo still shows its news in the window and the tray menu, but it sends no notifications. Notifications have no buttons: clicking one opens RepoBell, on the repo when there is only one. This keeps the "preview before acting" rule, and Tauri's notification plugin may not support buttons on Linux.
+RepoBell sends one notification per check, never one per change. With one repo it names the repo, the person and the first change title. With several it says how many repos have news. The user's own changes never trigger a notification. A change counts as their own when its author email matches their Git email in that repo. Own changes still show in the feed as "You added 2 changes", so a second machine explains why it is behind. Every repo sends notifications by default. Each repo has a notify switch in settings. A muted repo still shows its news in the window and the tray menu, but it sends no notifications. Notifications have no buttons: clicking one opens RepoBell, on the repo when there is only one. This keeps the "preview before acting" rule, and Tauri's notification plugin may not support buttons on Linux.
 
 ## Tray on Linux
 

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RepoBell settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&amp;family=Ubuntu+Mono&amp;display=swap">
+<style>
+body{margin:0;font-family:'Ubuntu',system-ui,sans-serif;color:#1B1B1F}
+a{color:#1F5FD1}a:hover{color:#174AA6}
+button,select{font-family:inherit}
+.switch{appearance:none;-webkit-appearance:none;margin:0;width:44px;height:26px;border-radius:13px;background:#C9C9C4;position:relative;cursor:pointer;flex-shrink:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch:checked{background:#1F5FD1}
+.switch:checked::after{left:21px}
+.switch:focus-visible{outline:2px solid #1F5FD1;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 480px; height: 960px; box-sizing: border-box; display: flex; flex-direction: column; background: #F6F6F4; border: 1px solid #D9D9D5; border-radius: 12px; overflow: hidden; font-family: 'Ubuntu', system-ui, sans-serif; color: #1B1B1F">
+
+  <header style="height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; background: #EBEBE8; border-bottom: 1px solid #D9D9D5">
+    <button aria-label="Back" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #3D3D45; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+    </button>
+    <div style="flex-grow: 1; text-align: center; font-size: 15px; font-weight: 700">Settings</div>
+    <button aria-label="Close window" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #3D3D45; cursor: pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </button>
+  </header>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 22px; padding: 18px 16px">
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <div>
+        <h2 style="margin: 0; font-size: 15px; font-weight: 700">Folders and repos</h2>
+        <p style="margin: 4px 0 0; font-size: 13px; line-height: 1.4; color: #5B5B66">RepoBell watches the repos inside these folders. A repo with notifications off still shows its news in RepoBell.</p>
+      </div>
+
+      <div style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; background: #FAFAF8; border-bottom: 1px solid #E3E3E0; border-radius: 10px 10px 0 0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B5B66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+          <span style="flex-grow: 1; font-size: 14px; font-family: 'Ubuntu Mono', ui-monospace, monospace">~/projects</span>
+          <button aria-label="Remove folder ~/projects" style="height: 40px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #3D3D45; font-size: 14px; cursor: pointer">Remove</button>
+        </div>
+        <ul style="margin: 0; padding: 0; list-style: none">
+          <li style="display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 6px 0 14px; border-bottom: 1px solid #EFEFEC">
+            <span style="flex-grow: 1; font-size: 14px">web-app</span>
+            <input type="checkbox" role="switch" class="switch" checked aria-label="Notifications for web-app">
+            <button aria-label="More options for web-app" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #5B5B66; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+          </li>
+          <li style="display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 6px 0 14px; border-bottom: 1px solid #EFEFEC">
+            <span style="flex-grow: 1; font-size: 14px">api-server</span>
+            <input type="checkbox" role="switch" class="switch" checked aria-label="Notifications for api-server">
+            <button aria-label="More options for api-server" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #5B5B66; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+          </li>
+          <li style="display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 6px 0 14px; border-bottom: 1px solid #EFEFEC; position: relative">
+            <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px">docs-site</span><span style="font-size: 12px; color: #5B5B66">Notifications off</span></span>
+            <input type="checkbox" role="switch" class="switch" aria-label="Notifications for docs-site">
+            <button aria-label="More options for docs-site" aria-expanded="true" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: #EEEEEC; color: #3D3D45; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+            <ul role="menu" aria-label="docs-site options" style="position: absolute; top: 46px; right: 6px; z-index: 2; margin: 0; padding: 6px; list-style: none; width: 180px; background: #FFFFFF; border: 1px solid #D9D9D5; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.12)">
+              <li role="none"><button role="menuitem" style="width: 100%; height: 40px; padding: 0 12px; border: none; border-radius: 6px; background: #F3F3F1; color: #1B1B1F; font-size: 14px; text-align: left; cursor: pointer">Stop watching</button></li>
+            </ul>
+          </li>
+          <li style="display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 6px 0 14px">
+            <span style="flex-grow: 1; font-size: 14px">mobile-app</span>
+            <input type="checkbox" role="switch" class="switch" checked aria-label="Notifications for mobile-app">
+            <button aria-label="More options for mobile-app" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #5B5B66; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+          </li>
+        </ul>
+      </div>
+
+      <div style="background: #FFFFFF; border: 1px solid #E3E3E0; border-radius: 10px">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; background: #FAFAF8; border-bottom: 1px solid #E3E3E0; border-radius: 10px 10px 0 0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B5B66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+          <span style="flex-grow: 1; font-size: 14px; font-family: 'Ubuntu Mono', ui-monospace, monospace">~/design</span>
+          <button aria-label="Remove folder ~/design" style="height: 40px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #3D3D45; font-size: 14px; cursor: pointer">Remove</button>
+        </div>
+        <ul style="margin: 0; padding: 0; list-style: none">
+          <li style="display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 6px 0 14px">
+            <span style="flex-grow: 1; font-size: 14px">design-system</span>
+            <input type="checkbox" role="switch" class="switch" checked aria-label="Notifications for design-system">
+            <button aria-label="More options for design-system" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #5B5B66; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+          </li>
+        </ul>
+      </div>
+
+      <button style="align-self: flex-start; height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border: 1px solid #C9C9C4; border-radius: 8px; background: #FFFFFF; color: #1B1B1F; font-size: 14px; font-weight: 500; cursor: pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        Add folder
+      </button>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Editor</h2>
+      <label for="editor" style="font-size: 13px; color: #5B5B66">Open conflicting files in</label>
+      <select id="editor" style="height: 44px; padding: 0 12px; border: 1px solid #C9C9C4; border-radius: 8px; background: #FFFFFF; color: #1B1B1F; font-size: 14px">
+        <option selected>VS Code</option>
+        <option>Sublime Text</option>
+        <option>System default app</option>
+      </select>
+      <p style="margin: 0; font-size: 12px; line-height: 1.4; color: #5B5B66">These are the editors found on this computer. If yours is missing, choose System default app.</p>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Checking</h2>
+      <label for="interval" style="font-size: 13px; color: #5B5B66">Check for news</label>
+      <select id="interval" style="height: 44px; padding: 0 12px; border: 1px solid #C9C9C4; border-radius: 8px; background: #FFFFFF; color: #1B1B1F; font-size: 14px">
+        <option selected>Every [INTERVAL]</option>
+      </select>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":480,"height":960}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
