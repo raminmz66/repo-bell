@@ -40,10 +40,11 @@ pub async fn check_now(
         (state.settings.clone(), state.seen.clone())
     };
 
-    let (repos, offline) = crate::watcher::check_repositories(&settings, &seen);
+    let (mut repos, offline) = crate::watcher::check_repositories(&settings, &seen);
     let now = crate::watcher::now_seconds();
 
     let mut state = engine.lock().await;
+    crate::watcher::apply_settings_to_repos(&mut repos, &state.settings);
     state.repos = repos;
     state.offline = offline;
     state.last_checked = Some(now);
@@ -109,8 +110,9 @@ pub async fn save_settings(
             let state = bg_engine.lock().await;
             state.seen.clone()
         };
-        let (repos, offline) = crate::watcher::check_repositories(&bg_settings, &seen);
+        let (mut repos, offline) = crate::watcher::check_repositories(&bg_settings, &seen);
         let mut state = bg_engine.lock().await;
+        crate::watcher::apply_settings_to_repos(&mut repos, &state.settings);
         state.repos = repos;
         state.offline = offline;
         state.last_checked = Some(crate::watcher::now_seconds());

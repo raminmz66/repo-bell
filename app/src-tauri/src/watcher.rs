@@ -90,6 +90,14 @@ impl EngineState {
     }
 }
 
+pub fn apply_settings_to_repos(repos: &mut [RepoCardView], settings: &Settings) {
+    for r in repos.iter_mut() {
+        r.ignored = settings.ignored.contains(&r.path);
+        r.muted = settings.muted.contains(&r.path);
+    }
+}
+
+
 pub fn discover_local_repositories(settings: &Settings) -> Vec<RepoCardView> {
     if settings.folders.is_empty() {
         return Vec::new();

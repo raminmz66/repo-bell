@@ -97,8 +97,9 @@ pub fn run() {
                                         let state = engine.lock().await;
                                         (state.settings.clone(), state.seen.clone())
                                     };
-                                    let (repos, offline) = watcher::check_repositories(&settings, &seen);
+                                    let (mut repos, offline) = watcher::check_repositories(&settings, &seen);
                                     let mut state = engine.lock().await;
+                                    watcher::apply_settings_to_repos(&mut repos, &state.settings);
                                     state.repos = repos;
                                     state.offline = offline;
                                     state.last_checked = Some(watcher::now_seconds());
@@ -158,7 +159,7 @@ pub fn run() {
                             known_notified_shas.insert(sha.clone());
                         }
 
-                        let (repos, offline) = watcher::check_repositories(&settings, &seen);
+                        let (mut repos, offline) = watcher::check_repositories(&settings, &seen);
                         notify::notify_news(&repos, &known_notified_shas);
 
                         for r in &repos {
@@ -170,6 +171,7 @@ pub fn run() {
                         }
 
                         let mut state = bg_engine.lock().await;
+                        watcher::apply_settings_to_repos(&mut repos, &state.settings);
                         state.repos = repos;
                         state.offline = offline;
                         state.last_checked = Some(watcher::now_seconds());
@@ -192,7 +194,7 @@ pub fn run() {
                             (state.settings.clone(), state.seen.clone())
                         };
 
-                        let (repos, offline) = watcher::check_repositories(&settings, &seen);
+                        let (mut repos, offline) = watcher::check_repositories(&settings, &seen);
                         notify::notify_news(&repos, &known_notified_shas);
 
                         for r in &repos {
@@ -204,6 +206,7 @@ pub fn run() {
                         }
 
                         let mut state = bg_engine.lock().await;
+                        watcher::apply_settings_to_repos(&mut repos, &state.settings);
                         state.repos = repos;
                         state.offline = offline;
                         state.last_checked = Some(watcher::now_seconds());
