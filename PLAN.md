@@ -1,99 +1,90 @@
-# RepoBell Phase 4: Packaging & Release Preparation Plan
+# UI Testing & Button Interaction Fixes Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Complete all Phase 4 release preparation tasks: feed grouping by person and day, Linux packaging (.deb & AppImage), contributing guide, registry name verification, and roadmap finalization.
+**Goal:** Fix the window close ("X") button not hiding the app to the background, fix watched repositories reverting to active after toggling in Settings, auto-reveal confirmation prompts on collapsed cards, and implement a complete automated UI button test suite covering every screen and interaction.
 
-**Architecture:** Svelte 5 frontend component enhancements (`feedGrouping.ts`, `RepoCard.svelte`), Tauri v2 configuration (`tauri.conf.json`), documentation (`CONTRIBUTING.md`, `docs/name-check.md`), and Debian packaging verification.
+**Architecture:** Tauri v2 capability configuration and IPC commands (`hide_window`), Rust engine synchronization in `watcher.rs` and `actions.rs`, Svelte 5 component interaction refinements, and Vitest + Testing Library DOM unit/integration test suites.
 
-**Tech Stack:** Rust, Svelte 5, TypeScript, Vite, Tauri v2 bundler.
-
-**Spec:** [SPEC.md](SPEC.md)
+**Spec:** [docs/superpowers/specs/2026-11-08-ui-testing-and-interaction-fixes-design.md](docs/superpowers/specs/2026-11-08-ui-testing-and-interaction-fixes-design.md)
 
 ---
 
-### Task 1: Feed Grouped by Person and Day (TypeScript & Svelte)
+### Task 1: Window Hiding Backend Command & Capability
 **Files:**
-- Create: `app/src/lib/feedGrouping.ts`
-- Create: `app/src/lib/feedGrouping.test.ts`
-- Modify: `app/src/lib/types.ts`
+- Modify: `app/src-tauri/capabilities/default.json`
+- Modify: `app/src-tauri/src/actions.rs`
+- Modify: `app/src-tauri/src/lib.rs`
+- Modify: `app/src/lib/Header.svelte`
+
+- [ ] **Step 1: Add window permissions to `default.json`** (`core:window:allow-hide`, `core:window:allow-close`)
+- [ ] **Step 2: Implement `hide_window` command in `actions.rs` and register in `generate_handler!`**
+- [ ] **Step 3: Update `Header.svelte` to invoke `hide_window` with reliable fallback**
+- [ ] **Step 4: Verify Rust compilation (`cargo check -p repobell`)**
+- [ ] **Step 5: Commit** (`fix(window): enable window hiding to system tray on close button click`)
+
+---
+
+### Task 2: Background Watcher & Settings State Synchronization
+**Files:**
+- Modify: `app/src-tauri/src/actions.rs`
+- Modify: `app/src-tauri/src/lib.rs`
+- Modify: `app/src-tauri/src/watcher.rs`
+- Create: `app/src-tauri/tests/settings_sync.rs`
+
+- [ ] **Step 1: Write integration test in `settings_sync.rs` asserting settings stability during background updates**
+- [ ] **Step 2: Synchronize in-flight background check results with latest engine settings in `actions.rs` and `lib.rs`**
+- [ ] **Step 3: Run `cargo test --test settings_sync` and verify all tests pass**
+- [ ] **Step 4: Commit** (`fix(settings): ensure background checks preserve latest ignored and muted repo settings`)
+
+---
+
+### Task 3: RepoCard & SettingsView Interaction Polish
+**Files:**
 - Modify: `app/src/lib/RepoCard.svelte`
+- Modify: `app/src/lib/SettingsView.svelte`
 
-**Interfaces:**
-- Input: `changes: ChangeView[]`
-- Output: `DayGroup[]` rendered in `RepoCard.svelte` with day headers (Today, Yesterday, Date), author headers ("Sarah Chen", "You"), and commit items.
-
-- [x] **Step 1: Write unit tests for `groupChangesByPersonAndDay` in `feedGrouping.test.ts`**
-- [x] **Step 2: Implement `groupChangesByPersonAndDay` in `feedGrouping.ts` and add types to `types.ts`**
-- [x] **Step 3: Update `RepoCard.svelte` to render grouped feed layout**
-- [x] **Step 4: Run tests (`npm run test` or vitest / build) and verify visually**
-- [x] **Step 5: Commit** (`feat: implement feed grouped by person and day`)
+- [ ] **Step 1: In `RepoCard.svelte`, ensure `isExpanded = true` triggers when confirmation or conflict states activate**
+- [ ] **Step 2: In `SettingsView.svelte`, ensure reactive toggle operations queue cleanly and prevent race conditions**
+- [ ] **Step 3: Verify TypeScript and Svelte build (`npm --prefix app run build`)**
+- [ ] **Step 4: Commit** (`fix(ui): reveal confirmation prompts on collapsed cards and smooth settings toggling`)
 
 ---
 
-### Task 2: Registry & Name Verification
+### Task 4: Setup Testing Library Environment for Vitest
 **Files:**
-- Create: `docs/name-check.md`
-- Modify: `docs/decisions.md`
+- Modify: `app/package.json`
+- Modify: `app/vite.config.ts`
 
-**Actions:**
-- Verify name availability for `repobell` on npm, crates.io, GitHub, and domain registries.
-- Record exact commands and query outputs in `docs/name-check.md`.
-- Update `docs/decisions.md` with findings and recommendations.
-
-- [x] **Step 1: Query npm registry for `repobell` and `repo-bell`**
-- [x] **Step 2: Query crates.io API for `repobell` and `repo-bell`**
-- [x] **Step 3: Check GitHub repository / org availability**
-- [x] **Step 4: Check DNS / domain availability**
-- [x] **Step 5: Record findings in `docs/name-check.md` and update `docs/decisions.md`**
-- [x] **Step 6: Commit** (`docs: verify repobell name availability on registries and domains`)
+- [ ] **Step 1: Install `@testing-library/svelte`, `@testing-library/jest-dom`, and `jsdom`**
+- [ ] **Step 2: Configure Vitest in `vite.config.ts` with `environment: 'jsdom'` and setup files**
+- [ ] **Step 3: Verify basic Vitest test runs cleanly**
+- [ ] **Step 4: Commit** (`chore(test): configure testing-library and jsdom for Svelte UI component tests`)
 
 ---
 
-### Task 3: Contributing Guide (`CONTRIBUTING.md`)
+### Task 5: Comprehensive Automated UI Button Tests
 **Files:**
-- Create: `CONTRIBUTING.md`
+- Create: `app/src/lib/__tests__/Header.test.ts`
+- Create: `app/src/lib/__tests__/Footer.test.ts`
+- Create: `app/src/lib/__tests__/WelcomeView.test.ts`
+- Create: `app/src/lib/__tests__/RepoCard.test.ts`
+- Create: `app/src/lib/__tests__/SettingsView.test.ts`
+- Create: `app/src/__tests__/App.test.ts`
 
-**Content:**
-- Prerequisites: Ubuntu 22.04+ system dependencies, Rust, Node.js.
-- Architecture explanation: core crate vs desktop app vs UI.
-- Development workflow: running dev mode, running tests, typechecking.
-- Conventional commits format, branch naming, and PR guidelines.
-
-- [x] **Step 1: Write comprehensive `CONTRIBUTING.md`**
-- [x] **Step 2: Verify all paths and commands work on the machine**
-- [x] **Step 3: Commit** (`docs: add comprehensive contributing guide`)
-
----
-
-### Task 4: Linux Packaging (.deb & AppImage)
-**Files:**
-- Modify: `app/src-tauri/tauri.conf.json`
-
-**Actions:**
-- Configure Tauri bundler with category, description, and debian dependencies (`libwebkit2gtk-4.1-0`, `libayatana-appindicator3-1`, `libxdo3`).
-- Run `npm run tauri build -- -b deb` to build `.deb`.
-- Check if AppImage can be built via `npm run tauri build -- -b appimage`.
-- Verify `.deb` file with `dpkg-deb --info` and `dpkg-deb --contents`.
-
-- [x] **Step 1: Update `tauri.conf.json` bundle configuration**
-- [x] **Step 2: Build Debian package (`.deb`)**
-- [x] **Step 3: Verify Debian package contents and dependency metadata**
-- [x] **Step 4: Test AppImage target**
-- [x] **Step 5: Commit** (`feat: configure and build Linux packages`)
+- [ ] **Step 1: Implement `Header.test.ts` (Check now, Settings, Back, Close window buttons)**
+- [ ] **Step 2: Implement `Footer.test.ts` (Add folder, Mark all as seen buttons)**
+- [ ] **Step 3: Implement `WelcomeView.test.ts` (Step 1 Find repos, Step 2 repo checkboxes, Add folder, Watch repos, Step 3 Login toggle, Done)**
+- [ ] **Step 4: Implement `RepoCard.test.ts` (Header toggle, Update, Set aside, Combine, Cancel, Open editor, Close conflict, Undo, Files toggle, File links)**
+- [ ] **Step 5: Implement `SettingsView.test.ts` (Back, Remove folder, Bell alert toggle, Watch switch, Add folder, Editor select, Interval select, Login switch)**
+- [ ] **Step 6: Implement `App.test.ts` (Navigation flows, Offline try again, No repos add folder, Up-to-date accordion)**
+- [ ] **Step 7: Run all frontend tests (`npm --prefix app test`) and ensure 100% pass**
+- [ ] **Step 8: Commit** (`test(ui): add comprehensive button and screen interaction tests`)
 
 ---
 
-### Task 5: Final Review, Roadmap Update & Branch Integration
-**Actions:**
-- Run full test suite: `cargo test` and `cd app && npm run build`.
-- Update `ROADMAP.md` checking off all Phase 4 items.
-- Merge `feat/phase4-release-prep` into `main`.
-- Push `origin/main`.
-- Delete local `feat/phase4-release-prep` branch.
-- Report completion to user with verification evidence.
-
-- [x] **Step 1: Run complete verification suite (`cargo test`, `npm run build`, `svelte-check`)**
-- [x] **Step 2: Update `ROADMAP.md` marking Phase 4 complete**
-- [x] **Step 3: Commit** (`chore: update roadmap marking Phase 4 complete`)
-- [x] **Step 4: Merge to `main`, push to `origin/main`, delete feature branch**
+### Task 6: Final Verification, Integration & Merge
+- [ ] **Step 1: Run full verification suite (`cargo test --workspace`, `npm --prefix app test`, `npm --prefix app run build`)**
+- [ ] **Step 2: Merge `fix/ui-button-interactions-and-tests` into `main`**
+- [ ] **Step 3: Push `origin/main`**
+- [ ] **Step 4: Delete local branch `fix/ui-button-interactions-and-tests`**
