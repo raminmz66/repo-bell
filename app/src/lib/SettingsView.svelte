@@ -9,6 +9,16 @@
   export let onStateRefresh: () => void;
 
   let localSettings: Settings = JSON.parse(JSON.stringify(state.settings));
+  let prevSettingsJson = JSON.stringify(state.settings);
+
+  $: {
+    const currentJson = JSON.stringify(state.settings);
+    if (currentJson !== prevSettingsJson) {
+      prevSettingsJson = currentJson;
+      localSettings = JSON.parse(currentJson);
+    }
+  }
+
   let availableEditors: string[] = ["System default app"];
 
   onMount(async () => {
@@ -24,7 +34,11 @@
 
   async function persistSettings() {
     try {
-      await invoke("save_settings", { settings: localSettings });
+      const updated = await invoke<AppStateView>("save_settings", { settings: localSettings });
+      if (updated?.settings) {
+        prevSettingsJson = JSON.stringify(updated.settings);
+        localSettings = JSON.parse(prevSettingsJson);
+      }
       onStateRefresh();
     } catch (e) {
       alert(`Could not save settings: ${e}`);
@@ -35,7 +49,10 @@
     try {
       const picked = await invoke<string | null>("pick_folder");
       if (picked && !localSettings.folders.includes(picked)) {
-        localSettings.folders.push(picked);
+        localSettings = {
+          ...localSettings,
+          folders: [...localSettings.folders, picked],
+        };
         await persistSettings();
       }
     } catch (e) {
@@ -44,25 +61,32 @@
   }
 
   async function removeFolder(folder: string) {
-    localSettings.folders = localSettings.folders.filter((f) => f !== folder);
+    localSettings = {
+      ...localSettings,
+      folders: localSettings.folders.filter((f) => f !== folder),
+    };
     await persistSettings();
   }
 
   async function toggleWatch(repoPath: string) {
-    if (localSettings.ignored.includes(repoPath)) {
-      localSettings.ignored = localSettings.ignored.filter((p) => p !== repoPath);
-    } else {
-      localSettings.ignored.push(repoPath);
-    }
+    const isIgnored = localSettings.ignored.includes(repoPath);
+    localSettings = {
+      ...localSettings,
+      ignored: isIgnored
+        ? localSettings.ignored.filter((p) => p !== repoPath)
+        : [...localSettings.ignored, repoPath],
+    };
     await persistSettings();
   }
 
   async function toggleMute(repoPath: string) {
-    if (localSettings.muted.includes(repoPath)) {
-      localSettings.muted = localSettings.muted.filter((p) => p !== repoPath);
-    } else {
-      localSettings.muted.push(repoPath);
-    }
+    const isMuted = localSettings.muted.includes(repoPath);
+    localSettings = {
+      ...localSettings,
+      muted: isMuted
+        ? localSettings.muted.filter((p) => p !== repoPath)
+        : [...localSettings.muted, repoPath],
+    };
     await persistSettings();
   }
 
@@ -113,6 +137,7 @@
                 <div class="repo-actions">
                   {#if isWatched}
                     <button
+                      type="button"
                       class="bell-btn"
                       class:muted={isMuted}
                       title={isMuted ? "Desktop alerts muted. Click to turn on alerts." : "Desktop alerts on. Click to mute alerts."}
