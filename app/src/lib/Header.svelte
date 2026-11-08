@@ -34,7 +34,7 @@
       </svg>
     </button>
   {:else if onCheckNow}
-    <button aria-label="Check now" class="icon-btn" class:spin={isChecking} disabled={isChecking} onclick={onCheckNow}>
+    <button aria-label="Check now" class="icon-btn" class:spin={isChecking} disabled={isChecking} onclick={() => { if (!isChecking && onCheckNow) onCheckNow(); }}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M21 12a9 9 0 1 1-2.6-6.4"></path>
         <path d="M21 4v5h-5"></path>
