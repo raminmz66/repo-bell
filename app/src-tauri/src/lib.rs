@@ -48,7 +48,8 @@ pub fn run() {
             actions::open_editor,
             actions::pick_folder,
             actions::detect_editors,
-            actions::discover_suggested_folders
+            actions::discover_suggested_folders,
+            actions::hide_window
         ])
         .setup({
             let engine = engine.clone();

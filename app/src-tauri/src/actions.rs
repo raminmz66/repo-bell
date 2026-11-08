@@ -318,3 +318,9 @@ pub fn discover_suggested_folders() -> Vec<SuggestedFolder> {
     }
     results
 }
+
+#[tauri::command]
+pub async fn hide_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.hide().map_err(|e| e.to_string())
+}
+

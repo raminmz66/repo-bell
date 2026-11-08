@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
   export let title: string = "RepoBell";
@@ -8,7 +9,14 @@
   export let showBack: boolean = false;
   export let onBack: (() => void) | undefined = undefined;
 
-  async function closeWindow() {
+  export async function closeWindow() {
+    try {
+      await invoke("hide_window");
+      return;
+    } catch {
+      // Fallback to WebviewWindow API
+    }
+
     try {
       const win = getCurrentWebviewWindow();
       await win.hide();
