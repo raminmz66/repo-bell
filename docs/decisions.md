@@ -20,7 +20,7 @@ RepoBell uses the MIT license. The code lives in the private GitHub repo `raminm
 
 ## Name
 
-The name is RepoBell. GitGlance and RepoLens were already used by several Git tools. No project called RepoBell turned up in web searches. The nearest name is RepoBee, a command-line tool for teachers. Before release, check npm, crates.io, a domain and the GitHub org.
+The name is RepoBell. GitGlance and RepoLens were already used by several Git tools. No project called RepoBell turned up in web searches. The nearest name is RepoBee, a command-line tool for teachers. On 2026-11-08, availability was confirmed across npm (`repobell` and `repo-bell` 404), crates.io (`repobell` and `repo-bell` do not exist), GitHub org/user/repo (`repobell` 404), and top-level domains (`repobell.com`, `repobell.dev`, `repobell.org` unallocated / NXDOMAIN). Full verification logs live in [docs/name-check.md](name-check.md).
 
 ## Where RepoBell keeps its data
 
