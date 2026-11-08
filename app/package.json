@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "svelte-check && vite build",
+    "test": "vitest run",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
     "typescript": "^6.0.3",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   }
 }

@@ -1,119 +1,99 @@
-# RepoBell Phase 3: Complete v1 App Implementation Plan
+# RepoBell Phase 4: Packaging & Release Preparation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement full v1 RepoBell app: background checks, dynamic tray states & menu, notification engine, complete main window with feed/update/undo, settings management, and first-run wizard.
+**Goal:** Complete all Phase 4 release preparation tasks: feed grouping by person and day, Linux packaging (.deb & AppImage), contributing guide, registry name verification, and roadmap finalization.
 
-**Architecture:** Tauri v2 Rust backend with background worker thread communicating with tray and frontend webview via IPC commands and events. Svelte frontend with modular views (Main, Settings, Welcome) and responsive state management.
+**Architecture:** Svelte 5 frontend component enhancements (`feedGrouping.ts`, `RepoCard.svelte`), Tauri v2 configuration (`tauri.conf.json`), documentation (`CONTRIBUTING.md`, `docs/name-check.md`), and Debian packaging verification.
 
-**Tech Stack:** Rust (Tauri v2, serde, repobell-core), Svelte 5, TypeScript, Vite.
+**Tech Stack:** Rust, Svelte 5, TypeScript, Vite, Tauri v2 bundler.
 
 **Spec:** [SPEC.md](SPEC.md)
 
-## Global Constraints
-- Target platform: Ubuntu 22.04+ (GNOME / X11).
-- Non-blocking Git execution off the main thread.
-- Atomic config saves (`settings.json` and `seen.json`).
-- UI styling faithful to `docs/mockups/project/` HTML mockups with Ubuntu font and clean neutral palette.
-- Rigorous verification before marking tasks complete.
-
 ---
 
-### Task 1: Background Engine & Dynamic Tray Controller (Rust)
+### Task 1: Feed Grouped by Person and Day (TypeScript & Svelte)
 **Files:**
-- Modify: `app/src-tauri/src/store.rs`
-- Create: `app/src-tauri/src/watcher.rs`
-- Modify: `app/src-tauri/src/lib.rs`
-- Test: `app/src-tauri/tests/watcher.rs`
+- Create: `app/src/lib/feedGrouping.ts`
+- Create: `app/src/lib/feedGrouping.test.ts`
+- Modify: `app/src/lib/types.ts`
+- Modify: `app/src/lib/RepoCard.svelte`
 
 **Interfaces:**
-- Consumes: `repobell_core::{discover, status, fetch_main, feed, classify}`
-- Produces: `AppStateView`, `check_now`, `mark_all_seen`, dynamic tray icon/menu updates.
+- Input: `changes: ChangeView[]`
+- Output: `DayGroup[]` rendered in `RepoCard.svelte` with day headers (Today, Yesterday, Date), author headers ("Sarah Chen", "You"), and commit items.
 
-- [ ] **Step 1: Write tests for watcher logic and feed aggregation**
-- [ ] **Step 2: Implement watcher engine, background interval loop, and tray update handler**
-- [ ] **Step 3: Wire tray menu dynamic items (headline, top 5 repos, actions) and left-click behavior**
-- [ ] **Step 4: Verify with `cargo test` and interactive run**
-- [ ] **Step 5: Commit** (`feat: add background check loop and dynamic tray controller`)
+- [ ] **Step 1: Write unit tests for `groupChangesByPersonAndDay` in `feedGrouping.test.ts`**
+- [ ] **Step 2: Implement `groupChangesByPersonAndDay` in `feedGrouping.ts` and add types to `types.ts`**
+- [ ] **Step 3: Update `RepoCard.svelte` to render grouped feed layout**
+- [ ] **Step 4: Run tests (`npm run test` or vitest / build) and verify visually**
+- [ ] **Step 5: Commit** (`feat: implement feed grouped by person and day`)
 
 ---
 
-### Task 2: Core Update & Undo IPC Endpoints and File Opening
+### Task 2: Registry & Name Verification
 **Files:**
-- Create: `app/src-tauri/src/actions.rs`
-- Modify: `app/src-tauri/src/lib.rs`
-- Test: `app/src-tauri/tests/actions.rs`
+- Create: `docs/name-check.md`
+- Modify: `docs/decisions.md`
 
-**Interfaces:**
-- Consumes: `repobell_core::update::{plan, update, undo, can_undo}`
-- Produces: Tauri IPC commands: `update_repo`, `undo_repo`, `open_editor`, `pick_folder`, `save_settings`, `get_app_state`.
+**Actions:**
+- Verify name availability for `repobell` on npm, crates.io, GitHub, and domain registries.
+- Record exact commands and query outputs in `docs/name-check.md`.
+- Update `docs/decisions.md` with findings and recommendations.
 
-- [ ] **Step 1: Implement action handlers in `actions.rs`**
-- [ ] **Step 2: Add editor discovery and opener (VS Code, JetBrains, Sublime, Text Editor, xdg-open)**
-- [ ] **Step 3: Register all IPC commands in Tauri builder**
-- [ ] **Step 4: Run unit and integration tests**
-- [ ] **Step 5: Commit** (`feat: add update, undo, and editor IPC handlers`)
+- [ ] **Step 1: Query npm registry for `repobell` and `repo-bell`**
+- [ ] **Step 2: Query crates.io API for `repobell` and `repo-bell`**
+- [ ] **Step 3: Check GitHub repository / org availability**
+- [ ] **Step 4: Check DNS / domain availability**
+- [ ] **Step 5: Record findings in `docs/name-check.md` and update `docs/decisions.md`**
+- [ ] **Step 6: Commit** (`docs: verify repobell name availability on registries and domains`)
 
 ---
 
-### Task 3: Notification Engine & Login Autostart
+### Task 3: Contributing Guide (`CONTRIBUTING.md`)
 **Files:**
-- Create: `app/src-tauri/src/notify.rs`
-- Create: `app/src-tauri/src/autostart.rs`
-- Modify: `app/src-tauri/src/watcher.rs`
-- Modify: `app/src-tauri/src/lib.rs`
+- Create: `CONTRIBUTING.md`
 
-**Interfaces:**
-- Consumes: `notify-send`, `~/.config/autostart/repobell.desktop`
-- Produces: Teammate commit notifications per check cycle; autostart toggling.
+**Content:**
+- Prerequisites: Ubuntu 22.04+ system dependencies, Rust, Node.js.
+- Architecture explanation: core crate vs desktop app vs UI.
+- Development workflow: running dev mode, running tests, typechecking.
+- Conventional commits format, branch naming, and PR guidelines.
 
-- [ ] **Step 1: Implement notify logic respecting `muted` repos and teammate commit filtering**
-- [ ] **Step 2: Implement autostart desktop entry generator**
-- [ ] **Step 3: Verify notification triggers and autostart file generation**
-- [ ] **Step 4: Commit** (`feat: add desktop notification and autostart support`)
+- [ ] **Step 1: Write comprehensive `CONTRIBUTING.md`**
+- [ ] **Step 2: Verify all paths and commands work on the machine**
+- [ ] **Step 3: Commit** (`docs: add comprehensive contributing guide`)
 
 ---
 
-### Task 4: Svelte UI Implementation — Main Window, Repo Cards, Update & Undo
+### Task 4: Linux Packaging (.deb & AppImage)
 **Files:**
-- Create: `app/src/lib/types.ts`
-- Create: `app/src/lib/RepoCard.svelte`
-- Create: `app/src/lib/Header.svelte`
-- Create: `app/src/lib/Footer.svelte`
-- Modify: `app/src/App.svelte`
+- Modify: `app/src-tauri/tauri.conf.json`
 
-**Interfaces:**
-- Consumes: Tauri IPC `get_app_state`, `check_now`, `mark_all_seen`, `update_repo`, `undo_repo`, `open_editor`
-- Produces: Full UI matching `Main.dc.html`, `UpdateStates.dc.html`, and `EmptyStates.dc.html`.
+**Actions:**
+- Configure Tauri bundler with category, description, and debian dependencies (`libwebkit2gtk-4.1-0`, `libayatana-appindicator3-1`, `libxdo3`).
+- Run `npm run tauri build -- -b deb` to build `.deb`.
+- Check if AppImage can be built via `npm run tauri build -- -b appimage`.
+- Verify `.deb` file with `dpkg-deb --info` and `dpkg-deb --contents`.
 
-- [ ] **Step 1: Create TypeScript types and mock/store bindings**
-- [ ] **Step 2: Implement `RepoCard.svelte` with badges, commit summaries, changed files, and Update/Undo modal states**
-- [ ] **Step 3: Implement Main window layout with Header, Footer, and "Up to date" accordion**
-- [ ] **Step 4: Verify with `npm run build` and UI screenshot testing**
-- [ ] **Step 5: Commit** (`feat: implement main window repo cards, feed, and update/undo flows`)
+- [ ] **Step 1: Update `tauri.conf.json` bundle configuration**
+- [ ] **Step 2: Build Debian package (`.deb`)**
+- [ ] **Step 3: Verify Debian package contents and dependency metadata**
+- [ ] **Step 4: Test AppImage target**
+- [ ] **Step 5: Commit** (`feat: configure and build Linux packages`)
 
 ---
 
-### Task 5: Svelte UI Implementation — Settings Screen & First-Run Wizard
-**Files:**
-- Create: `app/src/lib/SettingsView.svelte`
-- Create: `app/src/lib/WelcomeView.svelte`
-- Modify: `app/src/App.svelte`
+### Task 5: Final Review, Roadmap Update & Branch Integration
+**Actions:**
+- Run full test suite: `cargo test` and `cd app && npm run build`.
+- Update `ROADMAP.md` checking off all Phase 4 items.
+- Merge `feat/phase4-release-prep` into `main`.
+- Push `origin/main`.
+- Delete local `feat/phase4-release-prep` branch.
+- Report completion to user with verification evidence.
 
-**Interfaces:**
-- Consumes: `save_settings`, `pick_folder`, `discover_suggested_folders`, `set_start_at_login`
-- Produces: Screens matching `Settings.dc.html` and `Welcome.dc.html`.
-
-- [ ] **Step 1: Implement `SettingsView.svelte` with folder management, notify switches, editor select, interval select**
-- [ ] **Step 2: Implement `WelcomeView.svelte` 3-step wizard with auto-suggested folders and tray check**
-- [ ] **Step 3: Integrate navigation between Welcome, Main, and Settings in `App.svelte`**
-- [ ] **Step 4: Verify with `npm run build` and UI screenshot testing**
-- [ ] **Step 5: Commit** (`feat: implement settings view and first-run welcome wizard`)
-
----
-
-### Task 6: End-to-End Integration, Verification & Cleanup
-- [ ] **Step 1: Run all backend tests (`cargo test`) and frontend typechecks (`npm run build`)**
-- [ ] **Step 2: Run the app live, take screenshots of Main, Settings, and Welcome states**
-- [ ] **Step 3: Update `ROADMAP.md` checking off Phase 3 items**
-- [ ] **Step 4: Merge `feat/phase3-v1-app` to `main`, push to remote, and delete feature branch**
+- [ ] **Step 1: Run complete verification suite (`cargo test`, `npm run build`, `svelte-check`)**
+- [ ] **Step 2: Update `ROADMAP.md` marking Phase 4 complete**
+- [ ] **Step 3: Commit** (`chore: update roadmap marking Phase 4 complete`)
+- [ ] **Step 4: Merge to `main`, push to `origin/main`, delete feature branch**

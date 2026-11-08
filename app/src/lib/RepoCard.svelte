@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import type { RepoCardView, UpdateOutcomeView } from "./types";
+  import { groupChangesByPersonAndDay } from "./feedGrouping";
 
   export let repo: RepoCardView;
   export let onStateRefresh: () => void;
@@ -13,6 +14,8 @@
   let updateMessage: string | null = null;
   let isUpdating = false;
   let undoPossible = true;
+
+  $: groupedFeed = repo.feed ? groupChangesByPersonAndDay(repo.feed.changes) : [];
 
   function formatTime(timestamp: number | null): string {
     if (!timestamp) return "";
@@ -207,14 +210,37 @@
       {/if}
     </p>
 
-    <ul class="commit-list">
-      {#each repo.feed.changes.slice(0, 3) as change}
-        <li>{change.title}</li>
-      {/each}
-      {#if repo.feed.total_changes > 3}
-        <li class="more-commits">and {repo.feed.total_changes - 3} more</li>
-      {/if}
-    </ul>
+    {#if groupedFeed.length > 0}
+      <div class="feed-groups">
+        {#each groupedFeed as day}
+          <div class="day-group">
+            <span class="day-badge">{day.dayLabel}</span>
+            <div class="day-content">
+              {#each day.authors as authorGroup}
+                <div class="author-block">
+                  <div class="author-line">
+                    <span class="author-name" class:author-mine={authorGroup.mine}>
+                      {authorGroup.mine ? "You" : authorGroup.author}
+                    </span>
+                    <span class="author-badge">
+                      {authorGroup.changes.length} {authorGroup.changes.length === 1 ? "change" : "changes"}
+                    </span>
+                  </div>
+                  <ul class="commit-list">
+                    {#each authorGroup.changes as change}
+                      <li class="commit-item">
+                        <span class="commit-title">{change.title}</span>
+                        <span class="commit-sha">{change.sha.slice(0, 7)}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     {#if repo.feed.files_changed.length > 0}
       <button class="btn-files-toggle" onclick={() => (showFiles = !showFiles)} aria-expanded={showFiles}>
@@ -324,15 +350,81 @@
   .feed-time {
     color: #5b5b66;
   }
+  .feed-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 4px 0 6px 0;
+  }
+  .day-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .day-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: #5b5b66;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .day-content {
+    padding-left: 8px;
+    border-left: 2px solid #e3e3e0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .author-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .author-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .author-name {
+    font-weight: 600;
+    color: #2e2e33;
+  }
+  .author-mine {
+    color: #e95420;
+  }
+  .author-badge {
+    font-size: 11px;
+    color: #7a7a85;
+  }
   .commit-list {
     margin: 0;
-    padding: 0 0 0 18px;
-    font-size: 13px;
-    line-height: 1.5;
-    color: #3d3d45;
+    padding: 0 0 0 14px;
+    list-style-type: disc;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
-  .more-commits {
-    color: #5b5b66;
+  .commit-item {
+    font-size: 13px;
+    line-height: 1.4;
+    color: #3d3d45;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .commit-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .commit-sha {
+    font-family: monospace;
+    font-size: 11px;
+    color: #888891;
+    flex-shrink: 0;
   }
   .btn-files-toggle {
     align-self: flex-start;

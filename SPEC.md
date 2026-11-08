@@ -143,3 +143,49 @@ RepoBell is an ambient desktop tray application for Linux (Ubuntu 22.04+) built 
      - Editor select (auto-detected VS Code, JetBrains, Sublime, Text Editor, System default).
      - Check interval select (1m, 5m, 15m, 30m, 60m).
      - Start at login toggle.
+
+## 6. Phase 4: Release & Packaging Specification
+
+### 6.1 Feed Grouping by Person and Day
+- **Data structure**:
+  ```typescript
+  export interface AuthorDayGroup {
+    author: string;
+    mine: boolean;
+    changes: ChangeView[];
+  }
+
+  export interface DayGroup {
+    dayKey: string;      // YYYY-MM-DD
+    dayLabel: string;    // "Today", "Yesterday", or "MMM D, YYYY"
+    authors: AuthorDayGroup[];
+  }
+  ```
+- **Behavior**:
+  - Changes are grouped first by date (local timezone), then by author.
+  - Days are ordered newest to oldest.
+  - Within each day, authors are listed in order of their latest commit on that day.
+  - Commits under each author display commit message/title and timestamp/hash.
+  - Display is styled compactly matching the Ubuntu desktop design system.
+  - Unit tests verify multiple authors, multiple dates, boundary dates, and empty inputs.
+
+### 6.2 Linux Packaging (.deb & AppImage)
+- **Tauri v2 Bundler**:
+  - Target `.deb`: generated via `tauri build -b deb`.
+  - Deb metadata: Category `DeveloperTool`, description, icon set, runtime library dependencies:
+    - `libwebkit2gtk-4.1-0`
+    - `libayatana-appindicator3-1`
+    - `libxdo3`
+  - Verified with `dpkg-deb --info` and `dpkg-deb --contents`.
+  - Target `appimage`: generated via `tauri build -b appimage` when `appimagetool` is present.
+
+### 6.3 Contributing Guide (`CONTRIBUTING.md`)
+- Requirements & system libraries for Ubuntu.
+- Rust and Node toolchains.
+- Dev server and test execution (`cargo test`, `npm run build`).
+- Architecture breakdown (`crates/repobell_core` vs `app/src-tauri` vs `app/src`).
+- Conventional Commits and PR process.
+
+### 6.4 Registry & Name Verification
+- Name availability check for `repobell` / `repo-bell` on npm, crates.io, GitHub, and domain registries.
+- Findings recorded in `docs/name-check.md` and referenced in `docs/decisions.md`.

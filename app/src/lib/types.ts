@@ -15,6 +15,18 @@ export interface ChangeView {
   mine: boolean;
 }
 
+export interface AuthorDayGroup {
+  author: string;
+  mine: boolean;
+  changes: ChangeView[];
+}
+
+export interface DayGroup {
+  dayKey: string;
+  dayLabel: string;
+  authors: AuthorDayGroup[];
+}
+
 export interface FeedSummary {
   total_changes: number;
   author_summary: string;
