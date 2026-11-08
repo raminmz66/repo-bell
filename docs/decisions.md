@@ -12,6 +12,8 @@ The closest existing tool is Time2Pull. It warns you when a remote changes, but 
 
 RepoBell uses Tauri, with a Rust backend and a web UI. The app runs all day, so low memory use matters more than build speed. It calls Git through the command line rather than a library, which is simpler and behaves the same as the user's own Git.
 
+The window is written in Svelte with Vite. Svelte compiles down to small plain JavaScript, so the app stays light while it runs all day, and it keeps the many card states (Update, Undo, errors, empty states) simple to write. React was the other option; it has more contributors who know it, but it is heavier and we don't need its ecosystem for four screens.
+
 ## License and hosting
 
 RepoBell uses the MIT license. The code lives in the private GitHub repo `raminmz66/repo-bell` until the first release.
@@ -19,6 +21,10 @@ RepoBell uses the MIT license. The code lives in the private GitHub repo `raminm
 ## Name
 
 The name is RepoBell. GitGlance and RepoLens were already used by several Git tools. No project called RepoBell turned up in web searches. The nearest name is RepoBee, a command-line tool for teachers. Before release, check npm, crates.io, a domain and the GitHub org.
+
+## Where RepoBell keeps its data
+
+RepoBell keeps two small JSON files in the standard Linux folders. Settings (folders, muted repos, editor, check interval, start at login) live in `~/.config/repobell/settings.json`. The "last seen" commit for each repo lives in `~/.local/state/repobell/seen.json`. Keeping them apart means settings can be copied to another machine without bringing wrong "last seen" points, and the often-changing file never touches settings. Losing `seen.json` only makes everything show as new once. Each save writes a temporary file and then renames it, so a crash never leaves a half-written file. RepoBell never writes its own data into the user's repos.
 
 ## Checking for news
 

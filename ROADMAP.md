@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 3, project skeleton (Tauri app with tray and main window, using the finished Git core in crates/core). Decide first: the UI stack for the window (plain HTML and TypeScript, React, or Svelte), and where the app stores settings and "last seen" per repo.
+Current step: Phase 3, background checks on a timer with the tray icon states and tray menu (Check now, Mark all as seen, repo lines). The skeleton in `app/` already has the tray, the main window and the settings and "last seen" files. Run it with `cd app && npm install && npx tauri dev`.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -36,11 +36,14 @@ Each screen gets a senior UI/UX review before it is marked done.
 
 ## Phase 3: build v1
 
-- [ ] Project skeleton (Tauri app, tray, main window)
+- [x] Project skeleton (Tauri app, tray, main window, settings and "last seen" files)
 - [x] Find repos in the chosen folders (core: discover)
 - [x] Status per repo: behind, ahead, unsaved changes (core: status)
 - [x] "What's new" feed since the last look (core: fetch, feed)
 - [x] Plain error reasons for the repo card (core: errors)
+- [ ] Background checks on a timer, tray icon states and tray menu
+- [ ] Main window: repo cards, feed, Update and Undo
+- [ ] Settings screen
 - [ ] Desktop notifications
 - [x] Update button: safe, unsaved changes, diverged, conflict (core: update)
 - [x] Undo after update (core: undo)
