@@ -34,10 +34,12 @@
     if (repo.behind === 0) return;
 
     if (repo.unsaved && repo.ahead === 0) {
+      isExpanded = true;
       confirmingUnsaved = true;
       return;
     }
     if (repo.ahead > 0) {
+      isExpanded = true;
       confirmingCombine = true;
       return;
     }
@@ -59,6 +61,7 @@
         undoPossible = true;
         onStateRefresh();
       } else {
+        isExpanded = true;
         conflictFiles = outcome.conflict_files;
       }
     } catch (e) {

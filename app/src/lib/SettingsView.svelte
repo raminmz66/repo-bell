@@ -10,10 +10,12 @@
 
   let localSettings: Settings = JSON.parse(JSON.stringify(state.settings));
   let prevSettingsJson = JSON.stringify(state.settings);
+  let isSaving = false;
+  let hasPendingSave = false;
 
   $: {
     const currentJson = JSON.stringify(state.settings);
-    if (currentJson !== prevSettingsJson) {
+    if (!isSaving && !hasPendingSave && currentJson !== prevSettingsJson) {
       prevSettingsJson = currentJson;
       localSettings = JSON.parse(currentJson);
     }
@@ -33,15 +35,25 @@
   });
 
   async function persistSettings() {
+    if (isSaving) {
+      hasPendingSave = true;
+      return;
+    }
+    isSaving = true;
     try {
-      const updated = await invoke<AppStateView>("save_settings", { settings: localSettings });
-      if (updated?.settings) {
-        prevSettingsJson = JSON.stringify(updated.settings);
-        localSettings = JSON.parse(prevSettingsJson);
-      }
+      do {
+        hasPendingSave = false;
+        const payload = JSON.parse(JSON.stringify(localSettings));
+        const updated = await invoke<AppStateView>("save_settings", { settings: payload });
+        if (updated?.settings) {
+          prevSettingsJson = JSON.stringify(updated.settings);
+        }
+      } while (hasPendingSave);
       onStateRefresh();
     } catch (e) {
       alert(`Could not save settings: ${e}`);
+    } finally {
+      isSaving = false;
     }
   }
 
