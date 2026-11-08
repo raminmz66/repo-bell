@@ -1,75 +1,203 @@
+pub mod actions;
+pub mod autostart;
+pub mod notify;
 pub mod store;
+pub mod watcher;
 
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::sync::Arc;
+use std::time::Duration;
 
-use serde::Serialize;
+use tauri::async_runtime::Mutex;
+use tauri::image::Image;
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{image::Image, Manager, WindowEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 
-#[derive(Serialize)]
-struct RepoView {
-    path: PathBuf,
-    name: String,
-    /// Plain-words problem; when set the numbers below mean nothing.
-    error: Option<String>,
-    behind: u32,
-    ahead: u32,
-    unsaved: bool,
-}
-
-// Async so Git runs off the main thread and the tray stays responsive.
-#[tauri::command]
-async fn repos() -> Vec<RepoView> {
-    let settings = store::load_settings(&store::settings_path());
-    repobell_core::discover(&settings.folders, 4)
-        .into_iter()
-        .filter(|p| !settings.ignored.contains(p))
-        .map(|path| {
-            let name = path.file_name().map_or_else(
-                || path.display().to_string(),
-                |n| n.to_string_lossy().into_owned(),
-            );
-            let mut v = RepoView { path, name, error: None, behind: 0, ahead: 0, unsaved: false };
-            match repobell_core::status(&v.path) {
-                Ok(s) => (v.behind, v.ahead, v.unsaved) = (s.behind, s.ahead, s.unsaved),
-                Err(e) => {
-                    v.error = Some(repobell_core::classify(&e, &v.path).message().to_string())
-                }
-            }
-            v
-        })
-        .collect()
-}
+use watcher::{EngineState, SharedEngine};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let engine: SharedEngine = Arc::new(Mutex::new(EngineState::new()));
+
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![repos])
-        .setup(|app| {
-            let headline = MenuItem::with_id(app, "headline", "All quiet", false, None::<&str>)?;
-            let menu = MenuBuilder::new(app)
-                .item(&headline)
-                .separator()
-                .text("open", "Open RepoBell")
-                .text("quit", "Quit")
-                .build()?;
-            TrayIconBuilder::new()
-                .icon(Image::from_bytes(include_bytes!("../icons/tray/bell.png"))?)
-                .menu(&menu)
-                .show_menu_on_left_click(true)
-                .on_menu_event(|app, event| match event.id().as_ref() {
-                    "open" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
+        .manage(engine.clone())
+        .invoke_handler(tauri::generate_handler![
+            actions::get_app_state,
+            actions::check_now,
+            actions::mark_all_seen,
+            actions::save_settings,
+            actions::update_repo,
+            actions::undo_repo,
+            actions::open_editor,
+            actions::pick_folder,
+            actions::detect_editors,
+            actions::discover_suggested_folders
+        ])
+        .setup({
+            let engine = engine.clone();
+            move |app| {
+                let handle = app.handle().clone();
+
+                // Initial tray setup
+                let headline = MenuItem::with_id(app, "headline", "All quiet", false, None::<&str>)?;
+                let menu = MenuBuilder::new(app)
+                    .item(&headline)
+                    .separator()
+                    .text("open", "Open RepoBell")
+                    .text("check_now", "Check now")
+                    .text("mark_seen", "Mark all as seen")
+                    .separator()
+                    .text("quit", "Quit")
+                    .build()?;
+
+                let icon = Image::from_bytes(include_bytes!("../icons/tray/bell.png"))?;
+
+                let _tray = TrayIconBuilder::with_id("main-tray")
+                    .icon(icon)
+                    .menu(&menu)
+                    .show_menu_on_left_click(true)
+                    .on_menu_event({
+                        let engine = engine.clone();
+                        let _handle = handle.clone();
+                        move |app, event| {
+                            let id_str = event.id().as_ref();
+                            if id_str == "open" {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                }
+                            } else if id_str == "quit" {
+                                app.exit(0);
+                            } else if id_str == "check_now" {
+                                let engine = engine.clone();
+                                let app = app.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    let (settings, seen) = {
+                                        let state = engine.lock().await;
+                                        (state.settings.clone(), state.seen.clone())
+                                    };
+                                    let (repos, offline) = watcher::check_repositories(&settings, &seen);
+                                    let mut state = engine.lock().await;
+                                    state.repos = repos;
+                                    state.offline = offline;
+                                    state.last_checked = Some(watcher::now_seconds());
+                                    if let Some(tray) = app.tray_by_id("main-tray") {
+                                        let _ = watcher::update_tray(&app, &tray, &state);
+                                    }
+                                    let _ = app.emit("state-updated", state.to_view());
+                                });
+                            } else if id_str == "mark_seen" {
+                                let engine = engine.clone();
+                                let app = app.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    let mut state = engine.lock().await;
+                                    let mut to_insert = Vec::new();
+                                    for r in &state.repos {
+                                        if let Ok(sha) = repobell_core::remote_main_sha(&r.path, &r.main_branch) {
+                                            to_insert.push((r.path.clone(), sha));
+                                        }
+                                    }
+                                    for (p, s) in to_insert {
+                                        state.seen.insert(p, s);
+                                    }
+                                    let _ = store::save_seen(&store::seen_path(), &state.seen);
+                                    for r in &mut state.repos {
+                                        r.feed = None;
+                                    }
+                                    if let Some(tray) = app.tray_by_id("main-tray") {
+                                        let _ = watcher::update_tray(&app, &tray, &state);
+                                    }
+                                    let _ = app.emit("state-updated", state.to_view());
+                                });
+                            } else if let Some(repo_path) = id_str.strip_prefix("repo:") {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                    let _ = w.emit("focus-repo", repo_path);
+                                }
+                            }
                         }
+                    })
+                    .build(app)?;
+
+                // Background check loop
+                let bg_engine = engine.clone();
+                let bg_handle = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut known_notified_shas: HashSet<String> = HashSet::new();
+
+                    // Initial check on launch
+                    {
+                        let (settings, seen) = {
+                            let state = bg_engine.lock().await;
+                            (state.settings.clone(), state.seen.clone())
+                        };
+
+                        // Populate initially known shas
+                        for sha in seen.values() {
+                            known_notified_shas.insert(sha.clone());
+                        }
+
+                        let (repos, offline) = watcher::check_repositories(&settings, &seen);
+                        notify::notify_news(&repos, &known_notified_shas);
+
+                        for r in &repos {
+                            if let Some(ref feed) = r.feed {
+                                for c in &feed.changes {
+                                    known_notified_shas.insert(c.sha.clone());
+                                }
+                            }
+                        }
+
+                        let mut state = bg_engine.lock().await;
+                        state.repos = repos;
+                        state.offline = offline;
+                        state.last_checked = Some(watcher::now_seconds());
+
+                        if let Some(tray) = bg_handle.tray_by_id("main-tray") {
+                            let _ = watcher::update_tray(&bg_handle, &tray, &state);
+                        }
+                        let _ = bg_handle.emit("state-updated", state.to_view());
                     }
-                    "quit" => app.exit(0),
-                    _ => {}
-                })
-                .build(app)?;
-            Ok(())
+
+                    loop {
+                        let minutes = {
+                            let state = bg_engine.lock().await;
+                            state.settings.check_minutes.max(1)
+                        };
+                        tokio::time::sleep(Duration::from_secs(minutes as u64 * 60)).await;
+
+                        let (settings, seen) = {
+                            let state = bg_engine.lock().await;
+                            (state.settings.clone(), state.seen.clone())
+                        };
+
+                        let (repos, offline) = watcher::check_repositories(&settings, &seen);
+                        notify::notify_news(&repos, &known_notified_shas);
+
+                        for r in &repos {
+                            if let Some(ref feed) = r.feed {
+                                for c in &feed.changes {
+                                    known_notified_shas.insert(c.sha.clone());
+                                }
+                            }
+                        }
+
+                        let mut state = bg_engine.lock().await;
+                        state.repos = repos;
+                        state.offline = offline;
+                        state.last_checked = Some(watcher::now_seconds());
+
+                        if let Some(tray) = bg_handle.tray_by_id("main-tray") {
+                            let _ = watcher::update_tray(&bg_handle, &tray, &state);
+                        }
+                        let _ = bg_handle.emit("state-updated", state.to_view());
+                    }
+                });
+
+                Ok(())
+            }
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

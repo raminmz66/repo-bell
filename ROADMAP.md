@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 3, background checks on a timer with the tray icon states and tray menu (Check now, Mark all as seen, repo lines). The skeleton in `app/` already has the tray, the main window and the settings and "last seen" files. Run it with `cd app && npm install && npx tauri dev`.
+Current step: Phase 3 complete. Full v1 implementation complete with tray watcher, dynamic menu, rich main window, settings screen, update/undo flows, and first-run welcome wizard. Next: Phase 4 packaging and release preparation.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -41,15 +41,15 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [x] Status per repo: behind, ahead, unsaved changes (core: status)
 - [x] "What's new" feed since the last look (core: fetch, feed)
 - [x] Plain error reasons for the repo card (core: errors)
-- [ ] Background checks on a timer, tray icon states and tray menu
-- [ ] Main window: repo cards, feed, Update and Undo
-- [ ] Settings screen
-- [ ] Desktop notifications
+- [x] Background checks on a timer, tray icon states and tray menu
+- [x] Main window: repo cards, feed, Update and Undo
+- [x] Settings screen
+- [x] Desktop notifications
 - [x] Update button: safe, unsaved changes, diverged, conflict (core: update)
 - [x] Undo after update (core: undo)
-- [ ] Open conflicting files in the editor
-- [ ] First-run flow: suggested folders, tray check, start at login
-- [ ] Final review for regressions
+- [x] Open conflicting files in the editor
+- [x] First-run flow: suggested folders, tray check, start at login
+- [x] Final review for regressions
 
 ## Phase 4: v1.1 and first release
 
