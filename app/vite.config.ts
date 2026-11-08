@@ -6,7 +6,7 @@ export default defineConfig({
   clearScreen: false,
   server: { port: 1420, strictPort: true },
   resolve: {
-    conditions: process.env.VITEST ? ["browser"] : [],
+    conditions: ["browser"],
   },
   test: {
     environment: "jsdom",
