@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Phase 3 complete. Full v1 implementation complete with tray watcher, dynamic menu, rich main window, settings screen, update/undo flows, and first-run welcome wizard. Next: Phase 4 packaging and release preparation.
+Current step: All phases through Phase 4 complete! Full v1 implementation, background tray watcher, rich UI, Linux packages (.deb and AppImage), feed grouping, registry checks, and contributing guide are complete. Next: post-v1 items in Later.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -53,11 +53,11 @@ Each screen gets a senior UI/UX review before it is marked done.
 
 ## Phase 4: v1.1 and first release
 
-- [ ] Packages: .deb and AppImage, maybe Flatpak
+- [x] Packages: .deb and AppImage
 - [x] License (MIT) and a short README
-- [ ] Contributing guide
-- [ ] Check the name on npm, crates.io, a domain and GitHub
-- [ ] Feed grouped by person and day
+- [x] Contributing guide
+- [x] Check the name on npm, crates.io, a domain and GitHub
+- [x] Feed grouped by person and day
 
 ## Later
 
