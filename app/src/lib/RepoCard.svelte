@@ -58,6 +58,10 @@
       const outcome = await invoke<UpdateOutcomeView>("update_repo", { path: repo.path });
       if (outcome.success) {
         updateMessage = outcome.message;
+        if (outcome.undo_head) {
+          repo.undo_head = outcome.undo_head;
+        }
+        repo.behind = 0;
         undoPossible = true;
         onStateRefresh();
       } else {

@@ -11,7 +11,7 @@
     </svg>
     Add folder
   </button>
-  <button class="btn-mark-seen" disabled={!hasNews} onclick={onMarkAllSeen}>
+  <button class="btn-mark-seen" disabled={!hasNews} onclick={() => { if (hasNews && onMarkAllSeen) onMarkAllSeen(); }}>
     Mark all as seen
   </button>
 </footer>

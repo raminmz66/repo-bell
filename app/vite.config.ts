@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [svelte()],
   clearScreen: false,
   server: { port: 1420, strictPort: true },
+  resolve: {
+    conditions: process.env.VITEST ? ["browser"] : [],
+  },
   test: {
     environment: "jsdom",
     globals: true,
