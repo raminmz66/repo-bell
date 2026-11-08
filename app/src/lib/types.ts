@@ -45,6 +45,7 @@ export interface RepoCardView {
   ahead: number;
   unsaved: boolean;
   muted: boolean;
+  ignored: boolean;
   feed: FeedSummary | null;
   undo_head: string | null;
 }

@@ -72,8 +72,8 @@
     };
   });
 
-  $: newsRepos = state?.repos.filter((r) => r.behind > 0 || r.unsaved || r.error) ?? [];
-  $: upToDateRepos = state?.repos.filter((r) => r.behind === 0 && !r.unsaved && !r.error) ?? [];
+  $: newsRepos = state?.repos.filter((r) => !r.ignored && (r.behind > 0 || r.error !== null)) ?? [];
+  $: upToDateRepos = state?.repos.filter((r) => !r.ignored && r.behind === 0 && r.error === null) ?? [];
 </script>
 
 <main class="app-root">
@@ -206,6 +206,7 @@
     color: #1b1b1f;
     background: #f6f6f4;
     user-select: none;
+    overflow-x: hidden;
   }
   .app-root {
     display: flex;
@@ -214,6 +215,10 @@
     max-height: 100vh;
     overflow: hidden;
     box-sizing: border-box;
+    border: 1px solid #d5d5d0;
+    border-radius: 12px;
+    background: #f6f6f4;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   }
   .loading-box {
     display: flex;
@@ -226,6 +231,7 @@
   .main-body {
     flex-grow: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 16px;
     display: flex;
     flex-direction: column;

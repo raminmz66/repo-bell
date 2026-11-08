@@ -10,7 +10,6 @@
 
   let localSettings: Settings = JSON.parse(JSON.stringify(state.settings));
   let availableEditors: string[] = ["System default app"];
-  let openMenuRepo: string | null = null;
 
   onMount(async () => {
     try {
@@ -49,6 +48,15 @@
     await persistSettings();
   }
 
+  async function toggleWatch(repoPath: string) {
+    if (localSettings.ignored.includes(repoPath)) {
+      localSettings.ignored = localSettings.ignored.filter((p) => p !== repoPath);
+    } else {
+      localSettings.ignored.push(repoPath);
+    }
+    await persistSettings();
+  }
+
   async function toggleMute(repoPath: string) {
     if (localSettings.muted.includes(repoPath)) {
       localSettings.muted = localSettings.muted.filter((p) => p !== repoPath);
@@ -56,14 +64,6 @@
       localSettings.muted.push(repoPath);
     }
     await persistSettings();
-  }
-
-  async function stopWatching(repoPath: string) {
-    openMenuRepo = null;
-    if (!localSettings.ignored.includes(repoPath)) {
-      localSettings.ignored.push(repoPath);
-      await persistSettings();
-    }
   }
 
   function reposInFolder(folder: string): RepoCardView[] {
@@ -80,7 +80,7 @@
       <div>
         <h2 class="section-title">Folders and repos</h2>
         <p class="section-desc">
-          RepoBell watches the repos inside these folders. A repo with notifications off still shows its news in RepoBell.
+          Turn off a switch to stop watching that repo. Click the bell to mute desktop alerts.
         </p>
       </div>
 
@@ -96,45 +96,56 @@
 
           <ul class="repo-list">
             {#each reposInFolder(folder) as r}
-              <li class="repo-item">
+              {@const isWatched = !localSettings.ignored.includes(r.path)}
+              {@const isMuted = localSettings.muted.includes(r.path)}
+              <li class="repo-item" class:repo-ignored={!isWatched}>
                 <div class="repo-info">
                   <span class="repo-name">{r.name}</span>
-                  {#if localSettings.muted.includes(r.path)}
-                    <span class="muted-label">Notifications off</span>
+                  {#if !isWatched}
+                    <span class="status-badge status-stopped">Stopped (Ignored)</span>
+                  {:else if isMuted}
+                    <span class="status-badge status-muted">Watched · Alerts muted</span>
+                  {:else}
+                    <span class="status-badge status-active">Watched · Alerts on</span>
                   {/if}
                 </div>
 
-                <input
-                  type="checkbox"
-                  role="switch"
-                  class="switch"
-                  checked={!localSettings.muted.includes(r.path)}
-                  aria-label={`Notifications for ${r.name}`}
-                  onchange={() => toggleMute(r.path)}
-                />
-
-                <div class="menu-container">
-                  <button
-                    aria-label={`More options for ${r.name}`}
-                    class="btn-more"
-                    onclick={() => (openMenuRepo = openMenuRepo === r.path ? null : r.path)}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <circle cx="5" cy="12" r="1.8"></circle>
-                      <circle cx="12" cy="12" r="1.8"></circle>
-                      <circle cx="19" cy="12" r="1.8"></circle>
-                    </svg>
-                  </button>
-
-                  {#if openMenuRepo === r.path}
-                    <ul class="dropdown-menu" role="menu">
-                      <li role="none">
-                        <button role="menuitem" class="menu-item" onclick={() => stopWatching(r.path)}>
-                          Stop watching
-                        </button>
-                      </li>
-                    </ul>
+                <div class="repo-actions">
+                  {#if isWatched}
+                    <button
+                      class="bell-btn"
+                      class:muted={isMuted}
+                      title={isMuted ? "Desktop alerts muted. Click to turn on alerts." : "Desktop alerts on. Click to mute alerts."}
+                      onclick={() => toggleMute(r.path)}
+                      aria-label={`Toggle alerts for ${r.name}`}
+                    >
+                      {#if isMuted}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                          <path d="M18.63 13A17.89 17.89 0 0 1 18 8"></path>
+                          <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"></path>
+                          <path d="M1 1l22 22"></path>
+                        </svg>
+                        <span>Muted</span>
+                      {:else}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span>Alerts</span>
+                      {/if}
+                    </button>
                   {/if}
+
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    class="switch"
+                    checked={isWatched}
+                    title={isWatched ? "Watching (Click to stop watching)" : "Stopped (Click to watch)"}
+                    aria-label={`Watch ${r.name}`}
+                    onchange={() => toggleWatch(r.path)}
+                  />
                 </div>
               </li>
             {/each}
@@ -267,27 +278,70 @@
   .repo-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     min-height: 52px;
-    padding: 0 6px 0 14px;
+    padding: 8px 14px;
     border-bottom: 1px solid #efecec;
     position: relative;
+    transition: opacity 0.15s ease;
   }
   .repo-item:last-child {
     border-bottom: none;
+  }
+  .repo-item.repo-ignored {
+    opacity: 0.6;
+    background: #fafaf8;
   }
   .repo-info {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
   }
   .repo-name {
     font-size: 14px;
+    font-weight: 600;
   }
-  .muted-label {
+  .status-badge {
     font-size: 12px;
-    color: #5b5b66;
+    font-weight: 500;
+  }
+  .status-active {
+    color: #1e6b34;
+  }
+  .status-muted {
+    color: #55555c;
+  }
+  .status-stopped {
+    color: #55555c;
+  }
+  .repo-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .bell-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid #dcdcd8;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #2e2e33;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .bell-btn:hover {
+    background: #f0f0ee;
+  }
+  .bell-btn.muted {
+    background: #f6f6f4;
+    color: #66666e;
+    border-color: #e0e0dc;
   }
   .switch {
     appearance: none;
@@ -318,50 +372,6 @@
   }
   .switch:checked::after {
     left: 21px;
-  }
-  .menu-container {
-    position: relative;
-  }
-  .btn-more {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: #5b5b66;
-    cursor: pointer;
-  }
-  .btn-more:hover {
-    background: #f0f0ee;
-  }
-  .dropdown-menu {
-    position: absolute;
-    top: 44px;
-    right: 0;
-    z-index: 10;
-    margin: 0;
-    padding: 6px;
-    list-style: none;
-    width: 160px;
-    background: #ffffff;
-    border: 1px solid #d9d9d5;
-    border-radius: 10px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-  }
-  .menu-item {
-    width: 100%;
-    height: 38px;
-    padding: 0 12px;
-    border: none;
-    border-radius: 6px;
-    background: #f3f3f1;
-    color: #1b1b1f;
-    font-size: 14px;
-    text-align: left;
-    cursor: pointer;
   }
   .btn-add-folder {
     align-self: flex-start;

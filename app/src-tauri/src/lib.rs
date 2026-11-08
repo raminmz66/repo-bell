@@ -16,6 +16,22 @@ use tauri::{Emitter, Manager, WindowEvent};
 
 use watcher::{EngineState, SharedEngine};
 
+fn show_and_position_window(window: &tauri::WebviewWindow) {
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let screen_size = monitor.size();
+        let scale = monitor.scale_factor();
+        let win_width = (420.0 * scale) as i32;
+        let x = (screen_size.width as i32) - win_width - (16.0 * scale) as i32;
+        let y = (36.0 * scale) as i32;
+        let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+            x: x.max(0),
+            y,
+        }));
+    }
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let engine: SharedEngine = Arc::new(Mutex::new(EngineState::new()));
@@ -38,6 +54,10 @@ pub fn run() {
             let engine = engine.clone();
             move |app| {
                 let handle = app.handle().clone();
+
+                if let Some(w) = app.get_webview_window("main") {
+                    show_and_position_window(&w);
+                }
 
                 // Initial tray setup
                 let headline = MenuItem::with_id(app, "headline", "All quiet", false, None::<&str>)?;
@@ -64,8 +84,7 @@ pub fn run() {
                             let id_str = event.id().as_ref();
                             if id_str == "open" {
                                 if let Some(w) = app.get_webview_window("main") {
-                                    let _ = w.show();
-                                    let _ = w.set_focus();
+                                    show_and_position_window(&w);
                                 }
                             } else if id_str == "quit" {
                                 app.exit(0);
@@ -112,8 +131,7 @@ pub fn run() {
                                 });
                             } else if let Some(repo_path) = id_str.strip_prefix("repo:") {
                                 if let Some(w) = app.get_webview_window("main") {
-                                    let _ = w.show();
-                                    let _ = w.set_focus();
+                                    show_and_position_window(&w);
                                     let _ = w.emit("focus-repo", repo_path);
                                 }
                             }

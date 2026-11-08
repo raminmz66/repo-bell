@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepoBell — UI/UX Redesign & Impeccable Review (Before vs. After)</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --surface: #181b21;
+      --surface-border: #272c35;
+      --text-main: #f0f2f5;
+      --text-muted: #9aa0a6;
+      --accent-ubuntu: #e95420;
+      --accent-blue: #2563eb;
+      --accent-green: #16a34a;
+      --accent-red: #dc2626;
+      --badge-before: #fee2e2;
+      --badge-before-text: #991b1b;
+      --badge-after: #dcfce7;
+      --badge-after-text: #166534;
+      --font-family: -apple-system, BlinkMacSystemFont, "Ubuntu", "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      line-height: 1.5;
+      padding: 32px 24px 80px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header.doc-header {
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--surface-border);
+      padding-bottom: 24px;
+    }
+
+    .badge-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      background: rgba(233, 84, 32, 0.15);
+      color: var(--accent-ubuntu);
+      border: 1px solid rgba(233, 84, 32, 0.3);
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+      max-width: 780px;
+    }
+
+    .executive-summary {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 48px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .summary-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .summary-item h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-ubuntu);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .summary-item p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .comparison-section {
+      margin-bottom: 64px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+    }
+
+    @media (max-width: 900px) {
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid transparent;
+    }
+
+    .col-header.before {
+      border-color: var(--accent-red);
+    }
+
+    .col-header.after {
+      border-color: var(--accent-green);
+    }
+
+    .col-tag {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .col-tag.before {
+      background: rgba(220, 38, 38, 0.2);
+      color: #fca5a5;
+    }
+
+    .col-tag.after {
+      background: rgba(22, 163, 74, 0.2);
+      color: #86efac;
+    }
+
+    .issues-callout {
+      background: rgba(220, 38, 38, 0.08);
+      border: 1px solid rgba(220, 38, 38, 0.25);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #fca5a5;
+      margin-bottom: 16px;
+    }
+
+    .issues-callout ul {
+      margin-left: 20px;
+      margin-top: 6px;
+    }
+
+    .fixes-callout {
+      background: rgba(22, 163, 74, 0.08);
+      border: 1px solid rgba(22, 163, 74, 0.25);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #86efac;
+      margin-bottom: 16px;
+    }
+
+    .fixes-callout ul {
+      margin-left: 20px;
+      margin-top: 6px;
+    }
+
+    /* MOCKUP FRAMES */
+    .mockup-frame {
+      background: #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #374151;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      color: #1b1b1f;
+      font-family: "Ubuntu", -apple-system, sans-serif;
+    }
+
+    /* TRAY MOCKUP */
+    .tray-preview {
+      width: 320px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .tray-item {
+      padding: 6px 16px;
+      color: #374151;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: default;
+    }
+
+    .tray-item.headline {
+      color: #6b7280;
+      font-weight: 500;
+      font-size: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 6px;
+      margin-bottom: 4px;
+    }
+
+    .tray-item.action {
+      color: #111827;
+      font-weight: 500;
+    }
+
+    .tray-item.action:hover {
+      background: #f3f4f6;
+    }
+
+    .tray-sep {
+      height: 1px;
+      background: #e5e7eb;
+      margin: 4px 0;
+    }
+
+    .tray-news-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .tray-news-name {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .tray-news-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-ubuntu);
+      background: rgba(233, 84, 32, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* WINDOW MOCKUP */
+    .window-flyout {
+      width: 380px;
+      margin: 16px auto;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #d1d5db;
+    }
+
+    /* TITLEBAR (BEFORE) */
+    .mockup-os-titlebar {
+      height: 32px;
+      background: #e5e7eb;
+      border-bottom: 1px solid #d1d5db;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #374151;
+      font-weight: 500;
+    }
+
+    .os-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .os-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #9ca3af;
+    }
+
+    .os-btn.close { background: #ef4444; }
+    .os-btn.min { background: #f59e0b; }
+    .os-btn.max { background: #10b981; }
+
+    /* HEADER */
+    .app-header-preview {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #ffffff;
+    }
+
+    .app-header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .icon-placeholder {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #4b5563;
+      cursor: pointer;
+    }
+
+    .window-body {
+      padding: 14px;
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 460px;
+      overflow-y: auto;
+    }
+
+    /* CARD COMPONENT */
+    .card-preview {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      transition: all 0.15s ease;
+    }
+
+    .card-preview.collapsed {
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    .card-preview.collapsed:hover {
+      border-color: #cbd5e1;
+      background: #fdfdfd;
+    }
+
+    .card-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drawer-arrow {
+      font-size: 11px;
+      color: #6b7280;
+      transition: transform 0.2s ease;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .badge-behind-preview {
+      font-size: 11px;
+      font-weight: 600;
+      color: #1d4ed8;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 2px 8px;
+      border-radius: 5px;
+    }
+
+    .badge-unsaved-preview {
+      font-size: 11px;
+      font-weight: 600;
+      color: #b45309;
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      padding: 2px 8px;
+      border-radius: 5px;
+    }
+
+    .btn-update-preview {
+      height: 30px;
+      padding: 0 12px;
+      border: 1px solid #2563eb;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-update-preview:hover {
+      background: #eff6ff;
+    }
+
+    /* FEED GROUPS */
+    .feed-preview-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-top: 1px solid #f3f4f6;
+      padding-top: 8px;
+    }
+
+    .feed-day-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: 0.04em;
+    }
+
+    .feed-author-line {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-size: 12.5px;
+      color: #1f2937;
+    }
+
+    .feed-author-line strong {
+      font-weight: 600;
+    }
+
+    .feed-commit-item {
+      font-size: 12px;
+      color: #4b5563;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding-left: 10px;
+      border-left: 2px solid #e5e7eb;
+    }
+
+    .commit-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .commit-hash {
+      font-family: monospace;
+      color: #55555c; /* WCAG AA 4.8:1 compliant */
+      font-size: 11.5px;
+      flex-shrink: 0;
+    }
+
+    /* FILES LIST BOX */
+    .files-box-before {
+      background: #fafaf8;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #374151;
+      overflow-x: scroll; /* Triggers the horizontal scrollbar */
+      white-space: nowrap;
+    }
+
+    .files-box-after {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 140px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .file-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #2563eb;
+      text-decoration: none;
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-link:hover {
+      background: #e0f2fe;
+      text-decoration: underline;
+    }
+
+    /* SETTINGS ROW MOCKUP */
+    .settings-row-preview {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+    }
+
+    .settings-repo-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .settings-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bell-btn {
+      background: transparent;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #374151;
+    }
+
+    .bell-btn.muted {
+      background: #f3f4f6;
+      color: #9ca3af;
+      border-color: #e5e7eb;
+    }
+
+    .switch-ui {
+      width: 36px;
+      height: 20px;
+      background: #e95420;
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .switch-ui.off {
+      background: #d1d5db;
+    }
+
+    .switch-handle {
+      width: 16px;
+      height: 16px;
+      background: #ffffff;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .switch-ui.off .switch-handle {
+      right: auto;
+      left: 2px;
+    }
+
+    .callout-box {
+      border-left: 4px solid var(--accent-ubuntu);
+      background: rgba(233, 84, 32, 0.05);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header class="doc-header">
+      <span class="badge-pill">Senior UI/UX Review & Redesign Proposal</span>
+      <h1>RepoBell Comprehensive UI/UX Overhaul</h1>
+      <p class="subtitle">
+        Combining user feedback with senior UI/UX audit standards from <strong>Impeccable</strong> (WCAG AA contrast, scannability, horizontal containment, progressive disclosure, and Ubuntu GNOME desktop integration).
+      </p>
+    </header>
+
+    <!-- EXECUTIVE SUMMARY -->
+    <div class="executive-summary">
+      <h2>Synthesized Design Decisions (User Feedback + Impeccable Audit)</h2>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <h3>1. Tray Signal-to-Noise</h3>
+          <p>Tray popover filtered exclusively to repos with incoming team commits (<code>behind &gt; 0</code>). Removed repetitive <em>"Has unsaved changes"</em> flooding.</p>
+        </div>
+        <div class="summary-item">
+          <h3>2. "News" Definition</h3>
+          <p>Local unsaved edits never elevate a repo into the news feed. Repos with 0 behind commits sit in "Up to date", eliminating dead-end cards.</p>
+        </div>
+        <div class="summary-item">
+          <h3>3. Native Top-Right Flyout</h3>
+          <p>Window positioned directly under top-bar indicators (<code>x: screen_width - 420 - 16, y: 36</code>). Fixed 420x640 size, no double OS titlebars.</p>
+        </div>
+        <div class="summary-item">
+          <h3>4. Changed Files & Editor Links</h3>
+          <p>Strict horizontal containment (<code>overflow-x: hidden</code>). Max height 180px with vertical scroll. File paths are clickable links that open in your editor.</p>
+        </div>
+        <div class="summary-item">
+          <h3>5. Master Watch vs. Alerts</h3>
+          <p>Primary switch in settings controls <strong>Watch vs. Stop Watching</strong>. Dedicated Bell toggle (🔔 / 🔕) controls alerts. Hidden <code>...</code> menu removed.</p>
+        </div>
+        <div class="summary-item">
+          <h3>6. Collapsible Drawer Cards</h3>
+          <p>Cards act as collapsible accordions. Start expanded by default; can be collapsed to sleek 50px rows with the Update button directly accessible.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPARISON 1: TRAY MENU -->
+    <section class="comparison-section">
+      <div class="section-title">
+        <span>Screen 1: System Tray Popover Menu (GNOME Top Bar)</span>
+      </div>
+      <p class="section-desc">
+        The quick glimpse menu when clicking the bell indicator in the Ubuntu top panel.
+      </p>
+
+      <div class="comparison-grid">
+        <!-- BEFORE -->
+        <div>
+          <div class="col-header before">
+            <span class="col-tag before">Before (Current)</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Noisy & Contradictory</span>
+          </div>
+          <div class="issues-callout">
+            <strong>Identified Breakdowns:</strong>
+            <ul>
+              <li>Headline says "3 repos have news", but 4 out of 5 items show only "Has unsaved changes".</li>
+              <li>Actual repos with incoming commits are pushed into "and 13 more...".</li>
+              <li>Verbose syntax <code>repo: Behind by X, Has unsaved changes</code> is hard to scan.</li>
+            </ul>
+          </div>
+
+          <div class="mockup-frame" style="padding: 24px 0;">
+            <div class="tray-preview">
+              <div class="tray-item headline">3 repos have news</div>
+              <div class="tray-item">design-system-audit: Has unsaved changes</div>
+              <div class="tray-item">landing-page: Has unsaved changes</div>
+              <div class="tray-item">infra-terraform-config: Has unsaved changes</div>
+              <div class="tray-item">billing-dashboard: Behind by 287, Has unsaved changes</div>
+              <div class="tray-item">storefront: Has unsaved changes</div>
+              <div class="tray-item" style="color: #9ca3af; font-size: 12px;">and 13 more…</div>
+              <div class="tray-sep"></div>
+              <div class="tray-item action">Open RepoBell</div>
+              <div class="tray-item action">Check now</div>
+              <div class="tray-item action">Mark all as seen</div>
+              <div class="tray-sep"></div>
+              <div class="tray-item action" style="color: #dc2626;">Quit</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER -->
+        <div>
+          <div class="col-header after">
+            <span class="col-tag after">After (Proposed Redesign)</span>
+            <span style="font-size: 12px; color: var(--text-muted);">High-Signal & 1:1 Matched</span>
+          </div>
+          <div class="fixes-callout">
+            <strong>Impeccable Craft Improvements:</strong>
+            <ul>
+              <li>Strictly shows ONLY the exact repos with incoming news (or check errors).</li>
+              <li>High-contrast scannability: <code>repo-name — 18 new commits</code>.</li>
+              <li>Zero noise: local unsaved work stays out of the top-bar glance.</li>
+            </ul>
+          </div>
+
+          <div class="mockup-frame" style="padding: 24px 0;">
+            <div class="tray-preview">
+              <div class="tray-item headline">2 repos have news</div>
+              <div class="tray-item">
+                <div class="tray-news-row">
+                  <span class="tray-news-name">billing-dashboard</span>
+                  <span class="tray-news-badge">↓ 287</span>
+                </div>
+              </div>
+              <div class="tray-item">
+                <div class="tray-news-row">
+                  <span class="tray-news-name">mobile-app-frontend</span>
+                  <span class="tray-news-badge">↓ 18</span>
+                </div>
+              </div>
+              <div class="tray-sep"></div>
+              <div class="tray-item action">Open RepoBell</div>
+              <div class="tray-item action">Check now</div>
+              <div class="tray-item action">Mark all as seen</div>
+              <div class="tray-sep"></div>
+              <div class="tray-item action" style="color: #6b7280;">Quit RepoBell</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARISON 2: MAIN WINDOW FEED & DRAWER CARDS -->
+    <section class="comparison-section">
+      <div class="section-title">
+        <span>Screen 2: Main Flyout Window & Collapsible Drawer Cards</span>
+      </div>
+      <p class="section-desc">
+        Window geometry, titlebars, card drawer toggles, and changed files inspection.
+      </p>
+
+      <div class="comparison-grid">
+        <!-- BEFORE -->
+        <div>
+          <div class="col-header before">
+            <span class="col-tag before">Before (Current)</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Double Headers, Overflow & Clutter</span>
+          </div>
+          <div class="issues-callout">
+            <strong>Identified Breakdowns:</strong>
+            <ul>
+              <li>Window opens at top-left with redundant OS titlebar (minimize/maximize).</li>
+              <li>Repos without news sit as dead-end cards (no Update action).</li>
+              <li>47 changed files cause horizontal scrollbar blowout and text overlap.</li>
+              <li>Cards cannot be collapsed, forcing heavy vertical scrolling.</li>
+              <li>Commit hashes (#888891) fail WCAG AA contrast (3.5:1).</li>
+            </ul>
+          </div>
+
+          <div class="mockup-frame" style="padding: 16px 0;">
+            <div class="window-flyout">
+              <!-- OS Titlebar -->
+              <div class="mockup-os-titlebar">
+                <span>RepoBell</span>
+                <div class="os-controls">
+                  <span class="os-btn min"></span>
+                  <span class="os-btn max"></span>
+                  <span class="os-btn close"></span>
+                </div>
+              </div>
+              <!-- App Header -->
+              <div class="app-header-preview">
+                <div class="icon-placeholder">🔄</div>
+                <span class="app-header-title">RepoBell</span>
+                <div class="icon-placeholder">⚙️</div>
+                <div class="icon-placeholder">✕</div>
+              </div>
+
+              <!-- Body with Dead End Card & Overflowing Files -->
+              <div class="window-body">
+                <!-- Dead End Card -->
+                <div class="card-preview">
+                  <div class="card-top-row">
+                    <span class="card-title">design-system-audit</span>
+                  </div>
+                  <div>
+                    <span class="badge-unsaved-preview">Has unsaved changes</span>
+                  </div>
+                  <p style="font-size: 12px; color: #6b7280;">(No update button, nothing to do)</p>
+                </div>
+
+                <!-- Overflowing Card -->
+                <div class="card-preview">
+                  <div class="card-top-row">
+                    <span class="card-title">mobile-app-frontend</span>
+                    <button class="btn-update-preview">Update</button>
+                  </div>
+                  <div class="files-box-before">
+                    environments/dev/crm-panel/php/conf.d/base-php.ini<br>
+                    environments/production/phpmyadmin/php/conf.d/session-upload-progress.ini
+                  </div>
+                  <div style="font-size: 11px; color: #dc2626; text-align: center;">
+                    ⇄ Horizontal scrollbar active
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER -->
+        <div>
+          <div class="col-header after">
+            <span class="col-tag after">After (Proposed Redesign)</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Top-Right Flyout, Drawer Cards & Clickable Files</span>
+          </div>
+          <div class="fixes-callout">
+            <strong>Impeccable Craft Improvements:</strong>
+            <ul>
+              <li>Single clean header (frameless flyout anchored to top-right under tray).</li>
+              <li>Every card in news feed has actionable Update button; 0-behind repos moved to "Up to date".</li>
+              <li>Collapsible Drawer: click header to collapse into a tidy 48px row.</li>
+              <li>Files list: strictly contained, max-height 140px, clickable links that open directly in your editor.</li>
+              <li>Contrast & Typography: WCAG AA compliant (hash #55555c = 4.8:1, font sizes ≥12px).</li>
+            </ul>
+          </div>
+
+          <div class="mockup-frame" style="padding: 16px 0;">
+            <div class="window-flyout">
+              <!-- Single Clean Header (No redundant OS titlebar) -->
+              <div class="app-header-preview">
+                <div class="icon-placeholder" title="Check now">🔄</div>
+                <span class="app-header-title">RepoBell</span>
+                <div style="display: flex; gap: 8px;">
+                  <div class="icon-placeholder" title="Settings">⚙️</div>
+                  <div class="icon-placeholder" title="Close">✕</div>
+                </div>
+              </div>
+
+              <!-- Body with Drawer Cards -->
+              <div class="window-body">
+                <!-- Collapsed Card Example -->
+                <div class="card-preview collapsed" title="Click to expand drawer">
+                  <div class="card-top-row">
+                    <div class="card-title-group">
+                      <span class="drawer-arrow">▶</span>
+                      <span class="card-title">billing-dashboard</span>
+                      <span class="badge-behind-preview">Behind by 287</span>
+                    </div>
+                    <button class="btn-update-preview" onclick="event.stopPropagation()">Update</button>
+                  </div>
+                </div>
+
+                <!-- Expanded Card Example -->
+                <div class="card-preview">
+                  <div class="card-top-row" style="cursor: pointer;" title="Click to collapse drawer">
+                    <div class="card-title-group">
+                      <span class="drawer-arrow">▼</span>
+                      <span class="card-title">mobile-app-frontend</span>
+                      <span class="badge-behind-preview">Behind by 18</span>
+                    </div>
+                    <button class="btn-update-preview" onclick="event.stopPropagation()">Update</button>
+                  </div>
+
+                  <!-- Grouped Feed -->
+                  <div class="feed-preview-group">
+                    <div class="feed-day-tag">Today</div>
+                    <div class="feed-author-line">
+                      <strong>Sarah Chen</strong> <span>· 2 changes</span>
+                    </div>
+                    <div class="feed-commit-item">
+                      <span class="commit-text">feat: unified webhook dispatcher</span>
+                      <span class="commit-hash">4e7cd19</span>
+                    </div>
+                  </div>
+
+                  <!-- Clickable Contained Files Box -->
+                  <div class="files-box-after">
+                    <span class="file-link" title="Click to open in editor: environments/dev/compose.dev.yml">
+                      📄 environments/dev/compose.dev.yml
+                    </span>
+                    <span class="file-link" title="Click to open in editor: environments/dev/crm-panel/php/conf.d/base-php.ini">
+                      📄 environments/dev/crm-panel/php/conf.d/base-php.ini
+                    </span>
+                    <span class="file-link" title="Click to open in editor: environments/production/phpmyadmin/php/conf.d/session-upload-progress.ini">
+                      📄 environments/production/phpmyadmin/php/conf.d/session-upload-progress.ini
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARISON 3: SETTINGS VIEW -->
+    <section class="comparison-section">
+      <div class="section-title">
+        <span>Screen 3: Settings — Master Watch vs. Alerts Toggle</span>
+      </div>
+      <p class="section-desc">
+        Resolving the confusion between stopping repository watching and muting notifications.
+      </p>
+
+      <div class="comparison-grid">
+        <!-- BEFORE -->
+        <div>
+          <div class="col-header before">
+            <span class="col-tag before">Before (Current)</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Confusing Switch & Hidden Menu</span>
+          </div>
+          <div class="issues-callout">
+            <strong>Identified Breakdowns:</strong>
+            <ul>
+              <li>The main switch controls "Notifications off", misleading users into believing they stopped watching the repo.</li>
+              <li>Actual "Stop watching" is buried in a hidden three-dots <code>...</code> menu.</li>
+            </ul>
+          </div>
+
+          <div class="mockup-frame" style="padding: 24px 16px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div class="settings-row-preview">
+                <div>
+                  <span class="settings-repo-name">mobile-app-frontend</span>
+                  <div style="font-size: 11px; color: #9ca3af;">Notifications off</div>
+                </div>
+                <div class="settings-controls">
+                  <!-- Misleading switch: off means muted, not stopped -->
+                  <div class="switch-ui off"><span class="switch-handle"></span></div>
+                  <span style="font-size: 16px; color: #9ca3af; cursor: pointer;">⋮</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER -->
+        <div>
+          <div class="col-header after">
+            <span class="col-tag after">After (Proposed Redesign)</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Master Watch Switch + Dedicated Alert Bell</span>
+          </div>
+          <div class="fixes-callout">
+            <strong>Impeccable Craft Improvements:</strong>
+            <ul>
+              <li>The primary switch is the <strong>Master Watch Switch</strong> (ON = Watched, OFF = Stopped).</li>
+              <li>Desktop notifications are toggled via an explicit, dedicated <strong>Bell button</strong> (🔔 / 🔕).</li>
+              <li>Hidden three-dots <code>...</code> menu eliminated.</li>
+            </ul>
+          </div>
+
+          <div class="mockup-frame" style="padding: 24px 16px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Watched with notifications ON -->
+              <div class="settings-row-preview">
+                <div>
+                  <span class="settings-repo-name">storefront</span>
+                  <div style="font-size: 11px; color: #16a34a; font-weight: 500;">Active & Watched</div>
+                </div>
+                <div class="settings-controls">
+                  <button class="bell-btn" title="Click to mute desktop alerts">🔔 Alerts on</button>
+                  <div class="switch-ui" title="Toggle watching"><span class="switch-handle"></span></div>
+                </div>
+              </div>
+
+              <!-- Watched with notifications MUTED -->
+              <div class="settings-row-preview">
+                <div>
+                  <span class="settings-repo-name">billing-dashboard</span>
+                  <div style="font-size: 11px; color: #6b7280; font-weight: 500;">Watched (Muted)</div>
+                </div>
+                <div class="settings-controls">
+                  <button class="bell-btn muted" title="Click to turn on desktop alerts">🔕 Muted</button>
+                  <div class="switch-ui" title="Toggle watching"><span class="switch-handle"></span></div>
+                </div>
+              </div>
+
+              <!-- Stopped / Ignored -->
+              <div class="settings-row-preview" style="opacity: 0.6;">
+                <div>
+                  <span class="settings-repo-name">mobile-app-frontend</span>
+                  <div style="font-size: 11px; color: #9ca3af;">Stopped (Ignored)</div>
+                </div>
+                <div class="settings-controls">
+                  <div class="switch-ui off" title="Toggle watching"><span class="switch-handle"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="callout-box">
+      <h3 style="color: var(--accent-ubuntu); margin-bottom: 6px;">Next Step: Your Review & Confirmation</h3>
+      <p style="font-size: 14px; color: var(--text-main);">
+        Please review the side-by-side mockups and proposed behavioral changes above. Once you confirm, we will proceed immediately to implement these changes across the Rust backend, Svelte frontend, and window configuration.
+      </p>
+    </div>
+  </div>
+
+</body>
+</html>

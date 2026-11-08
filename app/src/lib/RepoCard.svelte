@@ -8,6 +8,7 @@
   export let onRemoveRepo: ((path: string) => void) | undefined = undefined;
 
   let showFiles = false;
+  let isExpanded = true;
   let confirmingUnsaved = false;
   let confirmingCombine = false;
   let conflictFiles: string[] = [];
@@ -94,182 +95,201 @@
   }
 </script>
 
-<article class="repo-card" class:conflict-card={conflictFiles.length > 0}>
-  <div class="card-header">
-    <h2 class="repo-title">{repo.name}</h2>
+<article class="repo-card" class:conflict-card={conflictFiles.length > 0} class:collapsed={!isExpanded}>
+  <div
+    class="card-header"
+    role="button"
+    tabindex="0"
+    aria-expanded={isExpanded}
+    onclick={() => (isExpanded = !isExpanded)}
+    onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (isExpanded = !isExpanded)}
+  >
+    <div class="header-left">
+      <span class="drawer-chevron" class:open={isExpanded} aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"></path>
+        </svg>
+      </span>
+      <h2 class="repo-title">{repo.name}</h2>
+      {#if repo.error}
+        <span class="badge badge-err" title={repo.error}>Can't check</span>
+      {:else if repo.behind > 0}
+        <span class="badge badge-behind" title={`The team made ${repo.behind} change${repo.behind === 1 ? "" : "s"} you don't have yet`}>
+          Behind by {repo.behind}
+        </span>
+      {:else if repo.ahead > 0}
+        <span class="badge badge-ahead">Ahead by {repo.ahead}</span>
+      {:else}
+        <span class="badge badge-uptodate">Up to date</span>
+      {/if}
+    </div>
+
     {#if repo.behind > 0 && !updateMessage && conflictFiles.length === 0}
-      <button class="btn-update" disabled={isUpdating} onclick={handleUpdate}>
+      <button
+        class="btn-update"
+        disabled={isUpdating}
+        onclick={(e) => {
+          e.stopPropagation();
+          handleUpdate();
+        }}
+      >
         {isUpdating ? "Updating..." : "Update"}
       </button>
     {/if}
   </div>
 
-  <!-- Status badges -->
-  <div class="badge-row">
-    {#if repo.error}
-      <span class="badge badge-err" title={repo.error}>Can't check</span>
-    {:else}
-      {#if repo.behind > 0}
-        <span class="badge badge-behind" title={`The team made ${repo.behind} change${repo.behind === 1 ? "" : "s"} you don't have yet`}>
-          Behind by {repo.behind}
-        </span>
-      {/if}
-      {#if repo.ahead > 0}
-        <span class="badge badge-ahead" title={`You have ${repo.ahead} change${repo.ahead === 1 ? "" : "s"} the team doesn't have yet`}>
-          Ahead by {repo.ahead}
-        </span>
-      {/if}
-      {#if repo.unsaved}
-        <span class="badge badge-unsaved" title="You edited files that are not committed yet">
-          Has unsaved changes
-        </span>
-      {/if}
-      {#if repo.behind === 0 && repo.ahead === 0 && !repo.unsaved}
-        <span class="badge badge-uptodate">Up to date</span>
-      {/if}
-    {/if}
-  </div>
-
-  <!-- Unsaved Changes Prompt -->
-  {#if confirmingUnsaved}
-    <div class="prompt-box prompt-amber">
-      <p class="prompt-title">You have unsaved changes.</p>
-      <p class="prompt-desc">Set them aside, update, then bring them back?</p>
-      <p class="prompt-sub">This will download {repo.behind} change{repo.behind === 1 ? "" : "s"}.</p>
-      <div class="prompt-actions">
-        <button class="btn-text" onclick={() => (confirmingUnsaved = false)}>Cancel</button>
-        <button class="btn-primary" onclick={executeUpdate}>Set aside and update</button>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Both Sides Changed / Combine Prompt -->
-  {#if confirmingCombine}
-    <div class="prompt-box prompt-blue">
-      <p class="prompt-title">Your work and the team's work both changed.</p>
-      <p class="prompt-desc">RepoBell can combine them. If that fails, nothing is changed.</p>
-      <p class="prompt-sub">
-        This will download {repo.behind} change{repo.behind === 1 ? "" : "s"} and combine them with your {repo.ahead} change{repo.ahead === 1 ? "" : "s"}.
-      </p>
-      <div class="prompt-actions">
-        <button class="btn-text" onclick={() => (confirmingCombine = false)}>Cancel</button>
-        <button class="btn-primary" onclick={executeUpdate}>Update and combine</button>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Conflict State -->
-  {#if conflictFiles.length > 0}
-    <div class="conflict-alert" role="alert">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A12A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.5"></path>
-      </svg>
-      <div>
-        <p class="conflict-title">Update stopped. Nothing was changed.</p>
-        <p class="conflict-desc">These files were changed by you and by your team:</p>
-      </div>
-    </div>
-    <ul class="conflict-list">
-      {#each conflictFiles as file}
-        <li class="conflict-item">
-          <span class="file-path">{file}</span>
-          <button class="btn-open-editor" onclick={() => openInEditor(file)}>Open in editor</button>
-        </li>
-      {/each}
-    </ul>
-    <div class="conflict-footer">
-      <button class="btn-secondary" onclick={() => (conflictFiles = [])}>Close</button>
-    </div>
-  {/if}
-
-  <!-- Post-Update Success / Undo Banner -->
-  {#if updateMessage && repo.undo_head}
-    <div class="undo-banner" class:undo-disabled={!undoPossible} role="status">
-      {#if undoPossible}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 12l5 5 9-10"></path>
-        </svg>
-        <p class="undo-text">{updateMessage}</p>
-        <button class="btn-undo" onclick={handleUndo}>Undo</button>
-      {:else}
-        <div>
-          <p class="undo-text">Updated recently.</p>
-          <p class="undo-sub">You changed files since the update.</p>
+  {#if isExpanded}
+    <!-- Unsaved Changes Prompt -->
+    {#if confirmingUnsaved}
+      <div class="prompt-box prompt-amber">
+        <p class="prompt-title">You have unsaved changes.</p>
+        <p class="prompt-desc">Set them aside, update, then bring them back?</p>
+        <p class="prompt-sub">This will download {repo.behind} change{repo.behind === 1 ? "" : "s"}.</p>
+        <div class="prompt-actions">
+          <button class="btn-text" onclick={() => (confirmingUnsaved = false)}>Cancel</button>
+          <button class="btn-primary" onclick={executeUpdate}>Set aside and update</button>
         </div>
-        <button class="btn-undo" disabled>Undo</button>
-      {/if}
-    </div>
-  {/if}
-
-  <!-- Feed Details -->
-  {#if repo.feed && !confirmingUnsaved && !confirmingCombine && conflictFiles.length === 0}
-    <p class="feed-summary">
-      {repo.feed.author_summary}
-      {#if repo.feed.newest_time}
-        <span class="feed-time">· {formatTime(repo.feed.newest_time)}</span>
-      {/if}
-    </p>
-
-    {#if groupedFeed.length > 0}
-      <div class="feed-groups">
-        {#each groupedFeed as day}
-          <div class="day-group">
-            <span class="day-badge">{day.dayLabel}</span>
-            <div class="day-content">
-              {#each day.authors as authorGroup}
-                <div class="author-block">
-                  <div class="author-line">
-                    <span class="author-name" class:author-mine={authorGroup.mine}>
-                      {authorGroup.mine ? "You" : authorGroup.author}
-                    </span>
-                    <span class="author-badge">
-                      {authorGroup.changes.length} {authorGroup.changes.length === 1 ? "change" : "changes"}
-                    </span>
-                  </div>
-                  <ul class="commit-list">
-                    {#each authorGroup.changes as change}
-                      <li class="commit-item">
-                        <span class="commit-title">{change.title}</span>
-                        <span class="commit-sha">{change.sha.slice(0, 7)}</span>
-                      </li>
-                    {/each}
-                  </ul>
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/each}
       </div>
     {/if}
 
-    {#if repo.feed.files_changed.length > 0}
-      <button class="btn-files-toggle" onclick={() => (showFiles = !showFiles)} aria-expanded={showFiles}>
-        <svg class="chevron" class:open={showFiles} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 6l6 6-6 6"></path>
-        </svg>
-        {repo.feed.files_changed.length} file{repo.feed.files_changed.length === 1 ? "" : "s"} changed
-      </button>
+    <!-- Both Sides Changed / Combine Prompt -->
+    {#if confirmingCombine}
+      <div class="prompt-box prompt-blue">
+        <p class="prompt-title">Your work and the team's work both changed.</p>
+        <p class="prompt-desc">RepoBell can combine them. If that fails, nothing is changed.</p>
+        <p class="prompt-sub">
+          This will download {repo.behind} change{repo.behind === 1 ? "" : "s"} and combine them with your {repo.ahead} change{repo.ahead === 1 ? "" : "s"}.
+        </p>
+        <div class="prompt-actions">
+          <button class="btn-text" onclick={() => (confirmingCombine = false)}>Cancel</button>
+          <button class="btn-primary" onclick={executeUpdate}>Update and combine</button>
+        </div>
+      </div>
+    {/if}
 
-      {#if showFiles}
-        <ul class="files-list">
-          {#each repo.feed.files_changed as f}
-            <li>{f}</li>
+    <!-- Conflict State -->
+    {#if conflictFiles.length > 0}
+      <div class="conflict-alert" role="alert">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A12A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.5"></path>
+        </svg>
+        <div>
+          <p class="conflict-title">Update stopped. Nothing was changed.</p>
+          <p class="conflict-desc">These files were changed by you and by your team:</p>
+        </div>
+      </div>
+      <ul class="conflict-list">
+        {#each conflictFiles as file}
+          <li class="conflict-item">
+            <span class="file-path">{file}</span>
+            <button class="btn-open-editor" onclick={() => openInEditor(file)}>Open in editor</button>
+          </li>
+        {/each}
+      </ul>
+      <div class="conflict-footer">
+        <button class="btn-secondary" onclick={() => (conflictFiles = [])}>Close</button>
+      </div>
+    {/if}
+
+    <!-- Post-Update Success / Undo Banner -->
+    {#if updateMessage && repo.undo_head}
+      <div class="undo-banner" class:undo-disabled={!undoPossible} role="status">
+        {#if undoPossible}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12l5 5 9-10"></path>
+          </svg>
+          <p class="undo-text">{updateMessage}</p>
+          <button class="btn-undo" onclick={handleUndo}>Undo</button>
+        {:else}
+          <div>
+            <p class="undo-text">Updated recently.</p>
+            <p class="undo-sub">You changed files since the update.</p>
+          </div>
+          <button class="btn-undo" disabled>Undo</button>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Feed Details -->
+    {#if repo.feed && !confirmingUnsaved && !confirmingCombine && conflictFiles.length === 0}
+      <p class="feed-summary">
+        {repo.feed.author_summary}
+        {#if repo.feed.newest_time}
+          <span class="feed-time">· {formatTime(repo.feed.newest_time)}</span>
+        {/if}
+      </p>
+
+      {#if groupedFeed.length > 0}
+        <div class="feed-groups">
+          {#each groupedFeed as day}
+            <div class="day-group">
+              <span class="day-badge">{day.dayLabel}</span>
+              <div class="day-content">
+                {#each day.authors as authorGroup}
+                  <div class="author-block">
+                    <div class="author-line">
+                      <span class="author-name" class:author-mine={authorGroup.mine}>
+                        {authorGroup.mine ? "You" : authorGroup.author}
+                      </span>
+                      <span class="author-badge">
+                        ({authorGroup.changes.length} {authorGroup.changes.length === 1 ? "change" : "changes"})
+                      </span>
+                    </div>
+                    <ul class="commit-list">
+                      {#each authorGroup.changes as change}
+                        <li class="commit-item">
+                          <span class="commit-title">{change.title}</span>
+                          <span class="commit-sha">{change.sha.slice(0, 7)}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/each}
+              </div>
+            </div>
           {/each}
-        </ul>
+        </div>
+      {/if}
+
+      {#if repo.feed.files_changed.length > 0}
+        <button class="btn-files-toggle" onclick={() => (showFiles = !showFiles)} aria-expanded={showFiles}>
+          <svg class="chevron" class:open={showFiles} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 6l6 6-6 6"></path>
+          </svg>
+          {repo.feed.files_changed.length} file{repo.feed.files_changed.length === 1 ? "" : "s"} changed
+        </button>
+
+        {#if showFiles}
+          <div class="files-box" role="list">
+            {#each repo.feed.files_changed as f}
+              <button
+                class="file-link-btn"
+                title={`Click to open in editor: ${f}`}
+                onclick={() => openInEditor(f)}
+              >
+                <svg class="file-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <path d="M14 2v6h6"></path>
+                </svg>
+                <span class="file-name">{f}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       {/if}
     {/if}
-  {/if}
 
-  <!-- Error Action -->
-  {#if repo.error}
-    <p class="err-text">{repo.error}</p>
-    <div class="err-actions">
-      {#if repo.error.includes("not found") && onRemoveRepo}
-        <button class="btn-secondary" onclick={() => onRemoveRepo?.(repo.path)}>Remove</button>
-      {:else}
-        <button class="btn-primary" onclick={onStateRefresh}>Try again</button>
-      {/if}
-    </div>
+    <!-- Error Action -->
+    {#if repo.error}
+      <p class="err-text">{repo.error}</p>
+      <div class="err-actions">
+        {#if repo.error.includes("not found") && onRemoveRepo}
+          <button class="btn-secondary" onclick={() => onRemoveRepo?.(repo.path)}>Remove</button>
+        {:else}
+          <button class="btn-primary" onclick={onStateRefresh}>Try again</button>
+        {/if}
+      </div>
+    {/if}
   {/if}
 </article>
 
@@ -282,6 +302,11 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .repo-card.collapsed {
+    padding: 10px 14px;
+    gap: 0;
   }
   .conflict-card {
     border: 1.5px solid #c4372b;
@@ -289,38 +314,57 @@
   .card-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    flex: 1;
+    overflow: hidden;
+  }
+  .drawer-chevron {
+    color: #5b5b66;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .drawer-chevron.open {
+    transform: rotate(90deg);
   }
   .repo-title {
     margin: 0;
     font-size: 15px;
     font-weight: 700;
-    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .btn-update {
-    height: 38px;
-    padding: 0 16px;
+    height: 34px;
+    padding: 0 14px;
     border: 1px solid #1f5fd1;
-    border-radius: 8px;
+    border-radius: 6px;
     background: #ffffff;
     color: #1f5fd1;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
+    flex-shrink: 0;
   }
   .btn-update:hover {
     background: #f0f5fd;
   }
-  .badge-row {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
   .badge {
     font-size: 12px;
     font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    flex-shrink: 0;
   }
   .badge-behind {
     background: #e6eefc;
@@ -329,10 +373,6 @@
   .badge-ahead {
     background: #eeeeec;
     color: #45454d;
-  }
-  .badge-unsaved {
-    background: #fceedd;
-    color: #84470c;
   }
   .badge-uptodate {
     background: #eeeeec;
@@ -362,9 +402,9 @@
     gap: 4px;
   }
   .day-badge {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    color: #5b5b66;
+    color: #494952;
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
@@ -394,8 +434,8 @@
     color: #e95420;
   }
   .author-badge {
-    font-size: 11px;
-    color: #7a7a85;
+    font-size: 12px;
+    color: #52525a;
   }
   .commit-list {
     margin: 0;
@@ -422,8 +462,8 @@
   }
   .commit-sha {
     font-family: monospace;
-    font-size: 11px;
-    color: #888891;
+    font-size: 12px;
+    color: #55555c;
     flex-shrink: 0;
   }
   .btn-files-toggle {
@@ -450,18 +490,49 @@
   .chevron.open {
     transform: rotate(90deg);
   }
-  .files-list {
-    margin: 0;
-    padding: 6px 12px;
+  .files-box {
+    margin: 4px 0 0;
+    padding: 6px;
     background: #fafaf8;
-    border: 1px solid #efecec;
-    border-radius: 6px;
+    border: 1px solid #e3e3e0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 140px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .file-link-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: #1f5fd1;
     font-family: monospace;
     font-size: 12px;
-    color: #3d3d45;
-    list-style: none;
-    display: grid;
-    gap: 4px;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .file-link-btn:hover {
+    background: #eef4fe;
+    text-decoration: underline;
+  }
+  .file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .file-icon {
+    flex-shrink: 0;
+    color: #55555c;
   }
   .prompt-box {
     display: flex;

@@ -2,3 +2,12 @@ target/
 node_modules/
 app/dist/
 app/src-tauri/gen/
+.agent/
+.agents/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.opencode/
+.impeccable/*.cache.json
+

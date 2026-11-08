@@ -14,7 +14,7 @@ pub fn notify_news(repos: &[RepoCardView], previously_seen_shas: &HashSet<String
     let mut repos_with_new_teammate_commits = Vec::new();
 
     for r in repos {
-        if r.muted {
+        if r.ignored || r.muted {
             continue;
         }
         if let Some(ref feed) = r.feed {

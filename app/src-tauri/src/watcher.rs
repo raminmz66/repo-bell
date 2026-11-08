@@ -40,6 +40,7 @@ pub struct RepoCardView {
     pub ahead: u32,
     pub unsaved: bool,
     pub muted: bool,
+    pub ignored: bool,
     pub feed: Option<FeedSummary>,
     pub undo_head: Option<String>,
 }
@@ -97,9 +98,7 @@ pub fn discover_local_repositories(settings: &Settings) -> Vec<RepoCardView> {
     let mut views = Vec::new();
 
     for path in repo_paths {
-        if settings.ignored.contains(&path) {
-            continue;
-        }
+        let ignored = settings.ignored.contains(&path);
         let name = path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
@@ -123,18 +122,20 @@ pub fn discover_local_repositories(settings: &Settings) -> Vec<RepoCardView> {
         let mut unsaved = false;
         let mut main_branch = "main".to_string();
 
-        match repobell_core::status(&path) {
-            Ok(s) => {
-                behind = s.behind;
-                ahead = s.ahead;
-                unsaved = s.unsaved;
-                if let Some(mb) = s.main_branch {
-                    main_branch = mb;
+        if !ignored {
+            match repobell_core::status(&path) {
+                Ok(s) => {
+                    behind = s.behind;
+                    ahead = s.ahead;
+                    unsaved = s.unsaved;
+                    if let Some(mb) = s.main_branch {
+                        main_branch = mb;
+                    }
                 }
-            }
-            Err(e) => {
-                let problem = repobell_core::classify(&e, &path);
-                error = Some(problem.message().to_string());
+                Err(e) => {
+                    let problem = repobell_core::classify(&e, &path);
+                    error = Some(problem.message().to_string());
+                }
             }
         }
 
@@ -148,6 +149,7 @@ pub fn discover_local_repositories(settings: &Settings) -> Vec<RepoCardView> {
             ahead,
             unsaved,
             muted,
+            ignored,
             feed: None,
             undo_head: None,
         });
@@ -173,11 +175,6 @@ pub fn check_repositories(settings: &Settings, seen: &Seen) -> (Vec<RepoCardView
     let mut offline_errors = 0usize;
 
     for path in repo_paths {
-        if settings.ignored.contains(&path) {
-            continue;
-        }
-        total_repos += 1;
-
         let name = path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
@@ -195,6 +192,27 @@ pub fn check_repositories(settings: &Settings, seen: &Seen) -> (Vec<RepoCardView
             });
 
         let muted = settings.muted.contains(&path);
+        let ignored = settings.ignored.contains(&path);
+
+        if ignored {
+            views.push(RepoCardView {
+                path,
+                name,
+                folder,
+                main_branch: "main".to_string(),
+                error: None,
+                behind: 0,
+                ahead: 0,
+                unsaved: false,
+                muted,
+                ignored: true,
+                feed: None,
+                undo_head: None,
+            });
+            continue;
+        }
+
+        total_repos += 1;
         let mut error = None;
         let mut behind = 0;
         let mut ahead = 0;
@@ -296,6 +314,7 @@ pub fn check_repositories(settings: &Settings, seen: &Seen) -> (Vec<RepoCardView
             ahead,
             unsaved,
             muted,
+            ignored: false,
             feed,
             undo_head: None,
         });
@@ -309,7 +328,7 @@ pub fn update_tray(app: &AppHandle, tray: &TrayIcon, state: &EngineState) -> tau
     let has_news_count = state
         .repos
         .iter()
-        .filter(|r| !r.muted && (r.behind > 0 || r.feed.as_ref().map_or(0, |f| f.total_changes) > 0))
+        .filter(|r| !r.ignored && !r.muted && (r.behind > 0 || r.feed.as_ref().map_or(0, |f| f.total_changes) > 0))
         .count();
 
     // 1. Choose icon
@@ -340,49 +359,45 @@ pub fn update_tray(app: &AppHandle, tray: &TrayIcon, state: &EngineState) -> tau
     let headline = MenuItem::with_id(app, "headline", &headline_text, false, None::<&str>)?;
     let mut menu_builder = MenuBuilder::new(app).item(&headline).separator();
 
-    // Top 5 news / active repos
-    let active_repos: Vec<&RepoCardView> = state
+    // Repos with incoming news or errors (NO repos that only have unsaved changes)
+    let mut active_repos: Vec<&RepoCardView> = state
         .repos
         .iter()
-        .filter(|r| r.behind > 0 || r.unsaved || r.error.is_some())
-        .take(5)
+        .filter(|r| !r.ignored && (r.behind > 0 || r.error.is_some()))
         .collect();
 
-    for r in &active_repos {
-        let mut status_parts = Vec::new();
-        if let Some(ref err) = r.error {
-            status_parts.push(err.clone());
+    // Sort: highest incoming commits first, then errors
+    active_repos.sort_by(|a, b| b.behind.cmp(&a.behind));
+
+    let top_repos: Vec<&RepoCardView> = active_repos.iter().copied().take(5).collect();
+
+    for r in &top_repos {
+        let label = if let Some(ref _err) = r.error {
+            format!("{} — Can't check", r.name)
+        } else if r.behind > 0 {
+            format!(
+                "{} — {} new commit{}",
+                r.name,
+                r.behind,
+                if r.behind == 1 { "" } else { "s" }
+            )
         } else {
-            if r.behind > 0 {
-                status_parts.push(format!("Behind by {}", r.behind));
-            }
-            if r.ahead > 0 {
-                status_parts.push(format!("Ahead by {}", r.ahead));
-            }
-            if r.unsaved {
-                status_parts.push("Has unsaved changes".to_string());
-            }
-        }
-        let status_desc = if status_parts.is_empty() {
-            "Up to date".to_string()
-        } else {
-            status_parts.join(", ")
+            format!("{} — Up to date", r.name)
         };
 
-        let label = format!("{}: {}", r.name, status_desc);
         let id = format!("repo:{}", r.path.display());
         let item = MenuItem::with_id(app, &id, &label, true, None::<&str>)?;
         menu_builder = menu_builder.item(&item);
     }
 
-    if state.repos.len() > 5 && active_repos.len() >= 5 {
-        let more_count = state.repos.len() - 5;
+    if active_repos.len() > 5 {
+        let more_count = active_repos.len() - 5;
         let more_label = format!("and {} more…", more_count);
         let more_item = MenuItem::with_id(app, "more_repos", &more_label, false, None::<&str>)?;
         menu_builder = menu_builder.item(&more_item);
     }
 
-    if !active_repos.is_empty() {
+    if !top_repos.is_empty() {
         menu_builder = menu_builder.separator();
     }
 
