@@ -41,7 +41,7 @@ pub fn feed(
     last_seen: Option<&str>,
     limit: usize,
 ) -> Result<Feed, GitError> {
-    let run = |args: &[&str]| crate::git::run(repo, args);
+    let run = |args: &[&str]| crate::git::run_background(repo, args);
     let base = match last_seen {
         Some(sha) if run(&["cat-file", "-e", &format!("{sha}^{{commit}}")]).is_ok() => sha,
         _ => "HEAD",
@@ -103,6 +103,6 @@ pub fn feed(
 /// The commit `origin/<main_branch>` points to. Saved as `last_seen` when the user marks a repo as seen.
 pub fn remote_main_sha(repo: &Path, main_branch: &str) -> Result<String, GitError> {
     let r = format!("refs/remotes/origin/{main_branch}^{{commit}}");
-    let out = crate::git::run(repo, &["rev-parse", "--verify", "--quiet", &r])?;
+    let out = crate::git::run_background(repo, &["rev-parse", "--verify", "--quiet", &r])?;
     Ok(out.trim().to_string())
 }

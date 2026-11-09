@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: All phases through Phase 4 complete! Full v1 implementation, background tray watcher, rich UI, Linux packages (.deb and AppImage), feed grouping, registry checks, and contributing guide are complete. Next: post-v1 items in Later.
+Current step: Review fixes are done on branch review-fixes (not merged yet). Next: merge, see CI pass on GitHub, then tag v0.1.0 for the first private release.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -58,6 +58,8 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [x] Contributing guide
 - [x] Check the name on npm, crates.io, a domain and GitHub
 - [x] Feed grouped by person and day
+- [x] Review fixes (41 findings from the 2026-11-09 review)
+- [ ] CI and release workflow (written, not yet run on GitHub)
 
 ## Later
 

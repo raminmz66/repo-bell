@@ -20,7 +20,7 @@ The codebase is organized as a Cargo workspace with a frontend Vite/Svelte clien
 ```text
 repo-bell/
 ├── crates/
-│   └── repobell_core/       # Pure Rust engine: discovery, status, fetch,
+│   └── core/                # Pure Rust engine: discovery, status, fetch,
 │                            # feed generation, safe update, undo, and error classification.
 ├── app/
 │   ├── src-tauri/           # Tauri v2 desktop harness (Rust):
@@ -67,9 +67,8 @@ sudo apt install -y \
 ### 3.3 Initial Setup
 ```bash
 git clone https://github.com/raminmz66/repo-bell.git
-cd repo-bell
-cd app
-npm install
+cd repo-bell/app
+npm ci
 ```
 
 ---
@@ -83,33 +82,36 @@ cd app
 npm run tauri dev
 ```
 
-### 4.2 Running Tests
-Before opening a pull request, run all unit and integration tests:
+### 4.2 Checks before a pull request
+CI runs the same checks:
 
-1. **Rust Test Suite (core engine & Tauri backend):**
-   ```bash
-   cargo test
-   ```
+```bash
+cargo fmt --all
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cd app
+npm run check   # svelte-check
+npm test
+```
 
-2. **Frontend Unit Tests (Vitest):**
-   ```bash
-   cd app
-   npm run test
-   ```
-
-3. **Frontend Typecheck & Production Build:**
-   ```bash
-   cd app
-   npm run build
-   ```
-
-### 4.3 Packaging Release Builds
-To build a standalone Debian package (`.deb`):
+### 4.3 Packaging and releases
+To build the `.deb` and AppImage locally:
 ```bash
 cd app
-npx tauri build -b deb
+npm run tauri build
 ```
-The resulting `.deb` package will be located in `target/release/bundle/deb/`.
+The packages land in `target/release/bundle/`.
+
+To publish a release:
+1. Set the new version in `app/src-tauri/tauri.conf.json`, `crates/core/Cargo.toml`, `app/src-tauri/Cargo.toml` and `app/package.json`.
+2. Commit and merge to `main`.
+3. Tag it and push the tag:
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+The release workflow checks that the tag matches `tauri.conf.json`, builds the packages and attaches them to a GitHub release.
 
 ---
 
@@ -131,7 +133,7 @@ We adhere strictly to [Conventional Commits](https://www.conventionalcommits.org
 - `refactor: simplify status check error classification`
 
 ### 5.3 Code Style
-- **Rust:** Format with `rustfmt` and ensure clean `cargo clippy` runs. Avoid `.unwrap()` in library code (`repobell_core`).
+- **Rust:** Format with `cargo fmt` and keep `cargo clippy -- -D warnings` clean. Avoid `.unwrap()` in library code (`crates/core`).
 - **Svelte / TypeScript:** Strict TypeScript typing enabled (`"strict": true`). Use standard Svelte 5 idioms and clean accessible HTML (`aria-*` labels).
 
 ---

@@ -39,7 +39,7 @@ impl Problem {
 /// (every call runs with `LC_ALL=C`).
 ///
 /// - `NotARepo` error: `FolderMissing` when `repo` does not exist, else `NotARepo`.
-/// - `Io` error: `Other` with the error text.
+/// - `Io` and `EditsInStash` errors: `Other` with the error text.
 /// - `Failed` error, matched on stderr, case-insensitive, first match wins in this order:
 ///   LoginFailed: "permission denied (publickey", "authentication failed", "could not read username",
 ///   "terminal prompts disabled", "host key verification failed", "the requested url returned error: 403"
@@ -53,6 +53,7 @@ pub fn classify(err: &GitError, repo: &Path) -> Problem {
         GitError::NotARepo if repo.exists() => return Problem::NotARepo,
         GitError::NotARepo => return Problem::FolderMissing,
         GitError::Io(e) => return Problem::Other(e.to_string()),
+        GitError::EditsInStash { .. } => return Problem::Other(err.to_string()),
         GitError::Failed { stderr, .. } => stderr,
     };
     let low = stderr.to_lowercase();

@@ -15,6 +15,7 @@ fn sample_settings() -> Settings {
         editor: Some("code".to_string()),
         check_minutes: 15,
         start_at_login: false,
+        setup_done: true,
     }
 }
 
@@ -68,7 +69,13 @@ fn partial_settings_fill_defaults() {
     let path = dir.path().join("settings.json");
     fs::write(&path, r#"{"check_minutes": 30}"#).unwrap();
     let s = load_settings(&path);
-    assert_eq!(s, Settings { check_minutes: 30, ..Settings::default() });
+    assert_eq!(
+        s,
+        Settings {
+            check_minutes: 30,
+            ..Settings::default()
+        }
+    );
 }
 
 #[test]
@@ -155,4 +162,31 @@ fn env_paths_absolute_and_relative() {
         seen_path(),
         home.path().join(".local/state/repobell/seen.json")
     );
+}
+
+#[test]
+fn notified_round_trip_and_unique_temp_names() {
+    use repobell_lib::store::{load_notified, save_notified, Notified};
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("notified.json");
+    assert!(load_notified(&path).is_empty());
+    let mut n = Notified::new();
+    n.insert(PathBuf::from("/r/a"), vec!["1".into(), "2".into()]);
+    save_notified(&path, &n).unwrap();
+    save_notified(&path, &n).unwrap();
+    assert_eq!(load_notified(&path), n);
+    let files: Vec<_> = fs::read_dir(dir.path()).unwrap().collect();
+    assert_eq!(files.len(), 1, "no temp file left behind");
+    fs::write(&path, "{broken").unwrap();
+    assert!(load_notified(&path).is_empty());
+}
+
+#[test]
+fn old_settings_with_folders_count_as_setup_done() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("settings.json");
+    fs::write(&path, r#"{"folders": ["/a"]}"#).unwrap();
+    assert!(load_settings(&path).setup_done);
+    fs::write(&path, r#"{"check_minutes": 30}"#).unwrap();
+    assert!(!load_settings(&path).setup_done);
 }

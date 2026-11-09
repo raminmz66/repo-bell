@@ -18,37 +18,34 @@ RepoBell sits quietly in your Ubuntu top bar, watches your Git repos, and tells 
 
 ---
 
-## Installation & Setup
+## Install
 
-### Option 1: Debian Package (.deb) — Recommended for Ubuntu
-Installs system-wide, integrates into the Ubuntu Application Menu, and enables desktop autostart:
-
-```bash
-sudo apt install ./target/release/bundle/deb/RepoBell_0.1.0_amd64.deb
-```
-
-Launch it from Ubuntu's application grid (search for **RepoBell**) or from the terminal:
-```bash
-repobell &
-```
-
-To uninstall:
-```bash
-sudo apt remove repo-bell
-```
-
-### Option 2: Portable AppImage (No root / sudo required)
-Make executable and run anywhere:
+Download the `.deb` or the AppImage from the repo's Releases page.
 
 ```bash
-chmod +x ./target/release/bundle/appimage/RepoBell_0.1.0_amd64.AppImage
-./target/release/bundle/appimage/RepoBell_0.1.0_amd64.AppImage &
+sudo apt install ./RepoBell_0.1.0_amd64.deb
 ```
 
-### Option 3: Direct Release Binary
+Or run the AppImage without installing:
+
 ```bash
-./target/release/repobell &
+chmod +x RepoBell_0.1.0_amd64.AppImage
+./RepoBell_0.1.0_amd64.AppImage
 ```
+
+To remove the package: `sudo apt remove repo-bell`.
+
+## Build from source
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the system packages. Then:
+
+```bash
+cd app
+npm ci
+npm run tauri build
+```
+
+The packages land in `target/release/bundle/`.
 
 ---
 

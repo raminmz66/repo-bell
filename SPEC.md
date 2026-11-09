@@ -1,3 +1,5 @@
+> [docs/decisions.md](docs/decisions.md) is the source of truth for product decisions. If this file disagrees, decisions.md wins.
+
 # RepoBell Phase 3: Complete v1 App Specification
 
 ## 1. Overview & Architecture
@@ -70,9 +72,9 @@ RepoBell is an ambient desktop tray application for Linux (Ubuntu 22.04+) built 
 - `mark_all_seen() -> ()`: Records the current remote main SHA for all watched repos in `seen.json`, updates tray to quiet (`bell.png`), and refreshes state.
 - `update_repo(path: PathBuf, mode: UpdateMode) -> UpdateResultView`:
   `UpdateMode`: `"safe" | "set_aside" | "combine"`
-  Calls `repobell_core::update`. Returns success (with undo point) or conflict (with list of conflicting files).
+  Calls `repobell_core::update`. On a side branch the card offers "Update main" (fast-forward of local main only; never switches branches). Returns success (with undo point) or conflict (with list of conflicting files).
 - `undo_repo(path: PathBuf, undo_head: String) -> UndoResultView`:
-  Calls `repobell_core::undo`.
+  Calls `repobell_core::undo`, which runs `git reset --keep`. It stops and changes nothing if the user's edits clash with the undo.
 - `open_editor(file_path: PathBuf) -> Result<(), String>`:
   Opens conflicting file using configured editor or `xdg-open`.
 - `save_settings(settings: Settings) -> ()`:
@@ -91,12 +93,12 @@ RepoBell is an ambient desktop tray application for Linux (Ubuntu 22.04+) built 
    - Can be triggered on-demand via IPC (`check_now`) or tray menu item ("Check now").
    - Fetches `origin/main` sequentially for each watched repo using `repobell_core::fetch_main`.
    - Computes status & feed against `seen.json`.
-   - If network failure affects all repos, sets `offline = true` and doubles interval with exponential backoff up to 60 minutes.
+   - If every check fails (usually no internet), sets `offline = true`. After an error the wait doubles (5, 10, 20 minutes and so on) until a check works again.
 
 2. **Tray States**:
    - `bell.png`: All watched repos are up-to-date with 0 unseen changes.
-   - `bell-dot.png`: At least 1 unmuted repo has unseen commits on remote main.
-   - `bell-off.png`: Offline or all checks failed.
+   - `bell-dot.png`: News: teammates' changes on main arrived since you last looked. Your own changes and repos that can't be checked do not count. Muted repos still count.
+   - `bell-off.png`: All checks failed, or RepoBell can't check.
 
 3. **Tray Menu Structure**:
    - Headline: `"X repos have news"` / `"All quiet"` / `"Can't check your repos"` (disabled item).
@@ -114,17 +116,17 @@ RepoBell is an ambient desktop tray application for Linux (Ubuntu 22.04+) built 
 
 ## 4. Notifications Engine
 
-- Sent once per check cycle when new incoming teammate commits are detected.
+- Sent once per check cycle when new teammate commits are detected. Clicking one opens RepoBell, on the repo when there is only one. No buttons.
 - Single repo: `"[repo-name]: [N] new changes"`, Body: `"[Author] added [N] changes to the main version. [Change title]..."`.
 - Multiple repos: `"RepoBell: [N] repos have news"`, Body: `"New changes were pushed to [list of repo names]."`.
-- Never sent for user's own commits (`mine: true`).
+- Never sent for the user's own commits (`mine: true`: author email matches their Git email in that repo).
 - Muted repos send zero desktop notifications.
 - Sent via native `/usr/bin/notify-send` with RepoBell icon.
 
 ## 5. UI Architecture (Svelte)
 
 1. **Views**:
-   - `WelcomeView`: 3-step first-run wizard (Find repos -> Select repos -> Tray & autostart).
+   - `WelcomeView`: 3-step first-run wizard (Find repos -> Top bar check -> Start at login).
    - `MainView`:
      - Header: Check now button, title, settings button, close button.
      - Headline & "Since you last looked" timestamp.
@@ -132,7 +134,7 @@ RepoBell is an ambient desktop tray application for Linux (Ubuntu 22.04+) built 
        - Repo name + Update button (Safe, Unsaved changes confirmation, Combine confirmation, or Conflict alert).
        - Badges: `Behind by X`, `Has unsaved changes`, `Ahead by X`, `Can't check`.
        - Commit summaries + bullet items + expandable "N files changed".
-       - Post-update Undo banner with live disable if files modified.
+       - Post-update Undo, greyed out once the user commits or updates again.
      - "Up to date" collapsible accordion.
      - Footer: "Add folder" button and "Mark all as seen" button.
      - Offline banner when all checks fail.
@@ -173,17 +175,15 @@ RepoBell is an ambient desktop tray application for Linux (Ubuntu 22.04+) built 
 - **Tauri v2 Bundler**:
   - Target `.deb`: generated via `tauri build -b deb`.
   - Deb metadata: Category `DeveloperTool`, description, icon set, runtime library dependencies:
-    - `libwebkit2gtk-4.1-0`
-    - `libayatana-appindicator3-1`
-    - `libxdo3`
+    - `libxdo3`, `git`, `libnotify-bin`, `zenity` (webkit and appindicator come from Tauri automatically)
   - Verified with `dpkg-deb --info` and `dpkg-deb --contents`.
   - Target `appimage`: generated via `tauri build -b appimage` when `appimagetool` is present.
 
 ### 6.3 Contributing Guide (`CONTRIBUTING.md`)
 - Requirements & system libraries for Ubuntu.
 - Rust and Node toolchains.
-- Dev server and test execution (`cargo test`, `npm run build`).
-- Architecture breakdown (`crates/repobell_core` vs `app/src-tauri` vs `app/src`).
+- Dev server and test execution (`cargo fmt`, `cargo clippy`, `cargo test`, `npm run check`, `npm test`).
+- Architecture breakdown (`crates/core` vs `app/src-tauri` vs `app/src`).
 - Conventional Commits and PR process.
 
 ### 6.4 Registry & Name Verification

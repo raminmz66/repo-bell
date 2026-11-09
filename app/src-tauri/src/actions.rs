@@ -1,60 +1,246 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use repobell_core::{Blocked, GitError, MainRefOutcome, Outcome, Plan, Problem, UndoOutcome};
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
+use tauri::State;
 
-use crate::autostart;
 use crate::store::{self, Settings};
-use crate::watcher::{AppStateView, SharedEngine};
+use crate::watcher::{self, AppStateView, RepoCardView, SharedEngine};
+use crate::{autostart, editors};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlanView {
+    /// `up_to_date`, `fast_forward`, `combine`, or a blocked reason: `detached`, `no_upstream`,
+    /// `in_progress`, `side_branch`.
+    pub kind: String,
+    #[serde(default)]
+    pub downloads: u32,
+    #[serde(default)]
+    pub yours: u32,
+    #[serde(default)]
+    pub set_aside: bool,
+    /// The one-line preview shown before the user confirms.
+    #[serde(default)]
+    pub message: String,
+}
+
+fn plural(n: u32) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
+    }
+}
+
+impl PlanView {
+    pub fn from_plan(plan: &Plan, branch: Option<&str>) -> Self {
+        let (kind, downloads, yours, set_aside) = match plan {
+            Plan::UpToDate => ("up_to_date", 0, 0, false),
+            Plan::FastForward {
+                downloads,
+                set_aside,
+            } => ("fast_forward", *downloads, 0, *set_aside),
+            Plan::Combine {
+                downloads,
+                yours,
+                set_aside,
+            } => ("combine", *downloads, *yours, *set_aside),
+            Plan::Blocked(Blocked::Detached) => ("detached", 0, 0, false),
+            Plan::Blocked(Blocked::NoUpstream) => ("no_upstream", 0, 0, false),
+            Plan::Blocked(Blocked::InProgress) => ("in_progress", 0, 0, false),
+            Plan::Blocked(Blocked::SideBranch) => ("side_branch", 0, 0, false),
+        };
+        let aside = if set_aside {
+            ". Your unsaved changes are set aside and put back"
+        } else {
+            ""
+        };
+        let message = match plan {
+            Plan::UpToDate => "Already up to date".to_string(),
+            Plan::FastForward { .. } => {
+                format!("This will download {downloads} change{}{aside}", plural(downloads))
+            }
+            Plan::Combine { .. } => format!(
+                "This will download {downloads} change{} and combine them with your {yours} change{}{aside}",
+                plural(downloads),
+                plural(yours)
+            ),
+            Plan::Blocked(Blocked::Detached) => {
+                "This repo isn't on a branch right now, so it can't be updated".to_string()
+            }
+            Plan::Blocked(Blocked::NoUpstream) => {
+                "This branch isn't linked to the team's version, so it can't be updated".to_string()
+            }
+            Plan::Blocked(Blocked::InProgress) => {
+                "Another update is half-finished in this repo. Ask a developer to finish it first".to_string()
+            }
+            Plan::Blocked(Blocked::SideBranch) => match branch {
+                Some(b) => format!("You're on {b}, not main. Use Update main to bring main up to date"),
+                None => "You're not on main. Use Update main to bring main up to date".to_string(),
+            },
+        };
+        PlanView {
+            kind: kind.to_string(),
+            downloads,
+            yours,
+            set_aside,
+            message,
+        }
+    }
+
+    /// `None` for a kind we don't know.
+    pub fn to_plan(&self) -> Option<Plan> {
+        let (downloads, yours, set_aside) = (self.downloads, self.yours, self.set_aside);
+        Some(match self.kind.as_str() {
+            "up_to_date" => Plan::UpToDate,
+            "fast_forward" => Plan::FastForward {
+                downloads,
+                set_aside,
+            },
+            "combine" => Plan::Combine {
+                downloads,
+                yours,
+                set_aside,
+            },
+            "detached" => Plan::Blocked(Blocked::Detached),
+            "no_upstream" => Plan::Blocked(Blocked::NoUpstream),
+            "in_progress" => Plan::Blocked(Blocked::InProgress),
+            "side_branch" => Plan::Blocked(Blocked::SideBranch),
+            _ => return None,
+        })
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateOutcomeView {
-    pub success: bool,
-    pub downloads: u32,
-    pub undo_head: Option<String>,
-    pub conflict_files: Vec<String>,
+pub struct UpdateResult {
+    /// `updated`, `up_to_date`, `conflict`, `plan_changed`, `blocked` or `edits_in_stash`.
+    pub status: String,
     pub message: String,
+    pub downloads: u32,
+    pub conflict_files: Vec<String>,
+    /// For `plan_changed`: the new plan to show and ask about again.
+    pub plan: Option<PlanView>,
+    /// For `edits_in_stash`: the stash entry that holds the user's changes (e.g. `stash@{1}`;
+    /// the commit sha if the entry can't be found). Show it only behind "Details".
+    pub stash: Option<String>,
+    /// For `edits_in_stash`: the command that brings the changes back. Behind "Details" only.
+    pub stash_command: Option<String>,
+}
+
+impl UpdateResult {
+    fn new(status: &str, message: impl Into<String>) -> Self {
+        UpdateResult {
+            status: status.to_string(),
+            message: message.into(),
+            downloads: 0,
+            conflict_files: Vec::new(),
+            plan: None,
+            stash: None,
+            stash_command: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SimpleResult {
+    pub status: String,
+    pub message: String,
+    /// Git's own words, for a "details" view. Only set when something failed.
+    pub detail: Option<String>,
+}
+
+impl SimpleResult {
+    fn new(status: &str, message: &str) -> Self {
+        SimpleResult {
+            status: status.into(),
+            message: message.into(),
+            detail: None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SuggestedFolder {
     pub path: PathBuf,
     pub display: String,
-    pub repos: Vec<String>,
+    /// Full paths of the repos found.
+    pub repos: Vec<PathBuf>,
+}
+
+/// True when `path` is one of the repos RepoBell is watching.
+pub fn is_watched(repos: &[RepoCardView], path: &Path) -> bool {
+    repos.iter().any(|r| !r.ignored && r.path == path)
+}
+
+/// Joins a repo-relative `file` onto `repo` and returns its real path, only when that path is
+/// inside the repo (symlinks and `..` included).
+pub fn resolve_in_repo(repo: &Path, file: &str) -> Result<PathBuf, String> {
+    let rel = Path::new(file);
+    if file.is_empty() || rel.is_absolute() {
+        return Err("That file isn't in this repo.".to_string());
+    }
+    let root = repo
+        .canonicalize()
+        .map_err(|_| "This repo's folder wasn't found.".to_string())?;
+    let full = root
+        .join(rel)
+        .canonicalize()
+        .map_err(|_| "That file wasn't found.".to_string())?;
+    if full.starts_with(&root) && full != root {
+        Ok(full)
+    } else {
+        Err("That file isn't in this repo.".to_string())
+    }
+}
+
+async fn ensure_watched(engine: &SharedEngine, path: &Path) -> Result<(), String> {
+    let st = engine.state.lock().await;
+    if is_watched(&st.repos, path) {
+        Ok(())
+    } else {
+        Err("RepoBell isn't watching that repo.".to_string())
+    }
+}
+
+async fn branch_of(engine: &SharedEngine, path: &Path) -> Option<String> {
+    let st = engine.state.lock().await;
+    st.repos
+        .iter()
+        .find(|r| r.path == path)
+        .and_then(|r| r.branch.clone())
+}
+
+fn git_error_message(e: &GitError, repo: &Path, what: &str) -> String {
+    match repobell_core::classify(e, repo) {
+        Problem::Other(_) => {
+            format!("Something went wrong, so {what} stopped. Ask a developer to take a look.")
+        }
+        p => p.message().to_string(),
+    }
+}
+
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|_| "Something went wrong inside RepoBell.".to_string())
 }
 
 #[tauri::command]
 pub async fn get_app_state(engine: State<'_, SharedEngine>) -> Result<AppStateView, String> {
-    let state = engine.lock().await;
-    Ok(state.to_view())
+    Ok(engine.state.lock().await.to_view())
 }
 
+/// Runs a check and returns the new state. When a check is already running, this returns the
+/// current state at once (with `checking: true`) and one more check runs when that one ends;
+/// the result arrives as a `state-updated` event.
 #[tauri::command]
 pub async fn check_now(
     app: tauri::AppHandle,
     engine: State<'_, SharedEngine>,
 ) -> Result<AppStateView, String> {
-    let (settings, seen) = {
-        let state = engine.lock().await;
-        (state.settings.clone(), state.seen.clone())
-    };
-
-    let (mut repos, offline) = crate::watcher::check_repositories(&settings, &seen);
-    let now = crate::watcher::now_seconds();
-
-    let mut state = engine.lock().await;
-    crate::watcher::apply_settings_to_repos(&mut repos, &state.settings);
-    state.repos = repos;
-    state.offline = offline;
-    state.last_checked = Some(now);
-
-    // Update tray if tray exists
-    if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = crate::watcher::update_tray(&app, &tray, &state);
-    }
-
-    Ok(state.to_view())
+    watcher::run_check(&app, engine.inner()).await;
+    Ok(engine.state.lock().await.to_view())
 }
 
 #[tauri::command]
@@ -62,28 +248,40 @@ pub async fn mark_all_seen(
     app: tauri::AppHandle,
     engine: State<'_, SharedEngine>,
 ) -> Result<AppStateView, String> {
-    let mut state = engine.lock().await;
-    let mut to_insert = Vec::new();
-    for r in &state.repos {
-        if let Ok(sha) = repobell_core::remote_main_sha(&r.path, &r.main_branch) {
-            to_insert.push((r.path.clone(), sha));
-        }
-    }
-    for (p, s) in to_insert {
-        state.seen.insert(p, s);
-    }
-    let _ = store::save_seen(&store::seen_path(), &state.seen);
+    watcher::mark_all_seen(&app, engine.inner()).await
+}
 
-    // Clear feeds for all repos
-    for r in &mut state.repos {
-        r.feed = None;
+async fn apply_settings(
+    app: &tauri::AppHandle,
+    engine: &SharedEngine,
+    mut settings: Settings,
+) -> Result<AppStateView, String> {
+    // Any save means setup is over; emptying the folder list later must not bring the wizard back.
+    settings.setup_done = true;
+    // The folder walk runs before the lock is taken.
+    let s = settings.clone();
+    let paths = blocking(move || watcher::discover_paths(&s)).await?;
+    let (view, autostart_error) = {
+        let mut st = engine.state.lock().await;
+        store::save_settings(&store::settings_path(), &settings)
+            .map_err(|e| format!("Couldn't save your settings: {e}"))?;
+        let autostart_error = autostart::set_autostart(settings.start_at_login).err();
+        st.repos = watcher::merge_skeleton(paths, &settings, &st.repos);
+        st.settings = settings;
+        st.generation += 1;
+        st.failures = 0;
+        watcher::publish(app, &mut st);
+        (st.to_view(), autostart_error)
+    };
+    let (app2, engine2) = (app.clone(), engine.clone());
+    tauri::async_runtime::spawn(async move { watcher::run_check(&app2, &engine2).await });
+    engine.wake.notify_one();
+    match autostart_error {
+        Some(e) => Err(format!(
+            "Your settings were saved, but \"start at login\" couldn't be changed: {e}"
+        )),
+        None => Ok(view),
     }
-
-    if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = crate::watcher::update_tray(&app, &tray, &state);
-    }
-
-    Ok(state.to_view())
 }
 
 #[tauri::command]
@@ -92,233 +290,324 @@ pub async fn save_settings(
     engine: State<'_, SharedEngine>,
     settings: Settings,
 ) -> Result<AppStateView, String> {
-    let _ = store::save_settings(&store::settings_path(), &settings);
-    let _ = autostart::set_autostart(settings.start_at_login);
-
-    let local_repos = crate::watcher::discover_local_repositories(&settings);
-    {
-        let mut state = engine.lock().await;
-        state.settings = settings.clone();
-        state.repos = local_repos;
-    }
-
-    let bg_engine = engine.inner().clone();
-    let bg_app = app.clone();
-    let bg_settings = settings.clone();
-    tauri::async_runtime::spawn(async move {
-        let seen = {
-            let state = bg_engine.lock().await;
-            state.seen.clone()
-        };
-        let (mut repos, offline) = crate::watcher::check_repositories(&bg_settings, &seen);
-        let mut state = bg_engine.lock().await;
-        crate::watcher::apply_settings_to_repos(&mut repos, &state.settings);
-        state.repos = repos;
-        state.offline = offline;
-        state.last_checked = Some(crate::watcher::now_seconds());
-        if let Some(tray) = bg_app.tray_by_id("main-tray") {
-            let _ = crate::watcher::update_tray(&bg_app, &tray, &state);
-        }
-        let _ = bg_app.emit("state-updated", state.to_view());
-    });
-
-    let state = engine.lock().await;
-    if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = crate::watcher::update_tray(&app, &tray, &state);
-    }
-
-    Ok(state.to_view())
+    apply_settings(&app, engine.inner(), settings).await
 }
 
+/// Removes a watched folder (for a "Folder not found" card).
+#[tauri::command]
+pub async fn remove_folder(
+    app: tauri::AppHandle,
+    engine: State<'_, SharedEngine>,
+    path: PathBuf,
+) -> Result<AppStateView, String> {
+    let mut settings = engine.state.lock().await.settings.clone();
+    settings.folders.retain(|f| *f != path);
+    apply_settings(&app, engine.inner(), settings).await
+}
+
+/// What Update would do right now, as a one-line preview. Nothing changes.
+#[tauri::command]
+pub async fn preview_update(
+    path: PathBuf,
+    engine: State<'_, SharedEngine>,
+) -> Result<PlanView, String> {
+    ensure_watched(&engine, &path).await?;
+    let branch = branch_of(&engine, &path).await;
+    let _guard = engine.locks.get(&path).lock_owned().await;
+    let p = path.clone();
+    let plan = blocking(move || repobell_core::plan(&p)).await?;
+    let plan = plan.map_err(|e| git_error_message(&e, &path, "the preview"))?;
+    Ok(PlanView::from_plan(&plan, branch.as_deref()))
+}
+
+/// Runs the update the user agreed to. `expected` is the plan `preview_update` returned; when
+/// the repo has changed since, nothing runs and the result is `plan_changed` with the new plan.
 #[tauri::command]
 pub async fn update_repo(
+    app: tauri::AppHandle,
     path: PathBuf,
+    expected: PlanView,
     engine: State<'_, SharedEngine>,
-) -> Result<UpdateOutcomeView, String> {
-    let plan = repobell_core::update::plan(&path).map_err(|e| e.to_string())?;
-
-    match repobell_core::update::update(&path, &plan) {
-        Ok(repobell_core::Outcome::Updated { downloads, undo }) => {
-            let mut state = engine.lock().await;
-            if let Some(r) = state.repos.iter_mut().find(|r| r.path == path) {
-                r.behind = 0;
-                r.undo_head = Some(undo.before.clone());
+) -> Result<UpdateResult, String> {
+    ensure_watched(&engine, &path).await?;
+    let expected_plan = expected
+        .to_plan()
+        .ok_or_else(|| "RepoBell didn't understand that request.".to_string())?;
+    let branch = branch_of(&engine, &path).await;
+    let _guard = engine.locks.get(&path).lock_owned().await;
+    let p = path.clone();
+    let outcome = blocking(move || repobell_core::update(&p, &expected_plan)).await?;
+    let engine = engine.inner();
+    match outcome {
+        Ok(Outcome::Updated { downloads, undo }) => {
+            {
+                // The new undo point changes what a running check may keep, so bump `generation`
+                // in the same lock: a stale check then can't drop the point.
+                let mut st = engine.state.lock().await;
+                st.undo.insert(path.clone(), undo);
+                st.generation += 1;
             }
-            Ok(UpdateOutcomeView {
-                success: true,
-                downloads,
-                undo_head: Some(undo.before),
-                conflict_files: Vec::new(),
-                message: format!("Updated. {} change{} downloaded.", downloads, if downloads == 1 { "" } else { "s" }),
-            })
+            watcher::refresh_one(&app, engine, &path).await;
+            let mut r = UpdateResult::new(
+                "updated",
+                format!(
+                    "Updated. {downloads} change{} downloaded.",
+                    plural(downloads)
+                ),
+            );
+            r.downloads = downloads;
+            Ok(r)
         }
-        Ok(repobell_core::Outcome::UpToDate) => Ok(UpdateOutcomeView {
-            success: true,
-            downloads: 0,
-            undo_head: None,
-            conflict_files: Vec::new(),
-            message: "Already up to date.".to_string(),
-        }),
-        Ok(repobell_core::Outcome::Conflict { files }) => Ok(UpdateOutcomeView {
-            success: false,
-            downloads: 0,
-            undo_head: None,
-            conflict_files: files,
-            message: "Update stopped. Nothing was changed.".to_string(),
-        }),
-        Ok(repobell_core::Outcome::PlanChanged(_)) => Err("Repository state changed. Please try again.".to_string()),
-        Ok(repobell_core::Outcome::Blocked(b)) => Err(format!("Update blocked: {:?}", b)),
-        Err(e) => Err(format!("Git error: {}", e)),
+        Ok(Outcome::UpToDate) => Ok(UpdateResult::new("up_to_date", "Already up to date.")),
+        Ok(Outcome::Conflict { files }) => {
+            let mut r = UpdateResult::new("conflict", "Update stopped. Nothing was changed.");
+            r.conflict_files = files;
+            Ok(r)
+        }
+        Ok(Outcome::PlanChanged(plan)) => {
+            let view = PlanView::from_plan(&plan, branch.as_deref());
+            let mut r = UpdateResult::new(
+                "plan_changed",
+                "This repo changed while you were looking. Check the new preview.",
+            );
+            r.plan = Some(view);
+            Ok(r)
+        }
+        Ok(Outcome::Blocked(b)) => {
+            let view = PlanView::from_plan(&Plan::Blocked(b), branch.as_deref());
+            Ok(UpdateResult::new("blocked", view.message))
+        }
+        Err(GitError::EditsInStash { stash, moved, .. }) => {
+            let (p, sha) = (path.clone(), stash.clone());
+            let found = blocking(move || repobell_core::stash_ref(&p, &sha)).await?;
+            let command = match found.as_deref() {
+                None | Some("stash@{0}") => "git stash pop".to_string(),
+                Some(r) => format!("git stash pop {r}"),
+            };
+            if moved {
+                // The update went through; only putting the edits back failed.
+                watcher::refresh_one(&app, engine, &path).await;
+            }
+            let message = if moved {
+                "Updated, but your unsaved changes were put aside safely. Ask a developer to bring them back."
+            } else {
+                "Update stopped. Your unsaved changes were put aside safely. Ask a developer to bring them back."
+            };
+            let mut r = UpdateResult::new("edits_in_stash", message);
+            r.stash = Some(found.unwrap_or(stash));
+            r.stash_command = Some(command);
+            Ok(r)
+        }
+        Err(e) => Err(git_error_message(&e, &path, "the update")),
     }
 }
 
+/// Undoes the last update RepoBell did in this repo. The undo point is kept by RepoBell, not
+/// sent by the window.
 #[tauri::command]
 pub async fn undo_repo(
+    app: tauri::AppHandle,
     path: PathBuf,
-    undo_head: String,
     engine: State<'_, SharedEngine>,
-) -> Result<bool, String> {
-    let current_head = match repobell_core::status(&path) {
-        Ok(_) => {
-            // Get current HEAD sha
-            let output = Command::new("git")
-                .args(["-C", path.to_str().unwrap(), "rev-parse", "HEAD"])
-                .output()
-                .map_err(|e| e.to_string())?;
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
-        }
-        Err(e) => return Err(e.to_string()),
+) -> Result<SimpleResult, String> {
+    ensure_watched(&engine, &path).await?;
+    let _guard = engine.locks.get(&path).lock_owned().await;
+    let Some(point) = engine.state.lock().await.undo.get(&path).cloned() else {
+        return Ok(SimpleResult::new(
+            "not_possible",
+            "There's nothing to undo.",
+        ));
     };
-
-    let undo_point = repobell_core::update::UndoPoint {
-        before: undo_head,
-        after: current_head,
-    };
-
-    match repobell_core::update::undo(&path, &undo_point) {
-        Ok(repobell_core::UndoOutcome::Undone) => {
-            let mut state = engine.lock().await;
-            if let Some(r) = state.repos.iter_mut().find(|r| r.path == path) {
-                r.undo_head = None;
-                if let Ok(st) = repobell_core::status(&path) {
-                    r.behind = st.behind;
-                    r.ahead = st.ahead;
-                    r.unsaved = st.unsaved;
-                }
-            }
-            Ok(true)
+    let p = path.clone();
+    let outcome = blocking(move || repobell_core::undo(&p, &point)).await?;
+    let engine = engine.inner();
+    match outcome {
+        Ok(UndoOutcome::Undone) => {
+            engine.state.lock().await.undo.remove(&path);
+            watcher::refresh_one(&app, engine, &path).await;
+            Ok(SimpleResult::new(
+                "undone",
+                "Undone. The repo is back where it was.",
+            ))
         }
-        Ok(repobell_core::UndoOutcome::NotPossible) => Ok(false),
-        Err(e) => Err(format!("Undo failed: {}", e)),
+        Ok(UndoOutcome::NotPossible) => {
+            watcher::refresh_one(&app, engine, &path).await;
+            Ok(SimpleResult::new(
+                "not_possible",
+                "Undo isn't possible because the repo changed since the update. Nothing was changed.",
+            ))
+        }
+        Err(e) => Err(git_error_message(&e, &path, "undo")),
     }
 }
 
+/// On a side branch: moves the local main branch up to the team's main. The files, the current
+/// branch and unsaved changes stay as they are.
+#[tauri::command]
+pub async fn update_main(
+    app: tauri::AppHandle,
+    path: PathBuf,
+    engine: State<'_, SharedEngine>,
+) -> Result<SimpleResult, String> {
+    ensure_watched(&engine, &path).await?;
+    let _guard = engine.locks.get(&path).lock_owned().await;
+    let p = path.clone();
+    let outcome = blocking(move || repobell_core::update_main_ref(&p)).await?;
+    if outcome.is_ok() {
+        watcher::refresh_one(&app, engine.inner(), &path).await;
+    }
+    match outcome {
+        Ok(MainRefOutcome::Updated { .. }) => Ok(SimpleResult::new(
+            "updated",
+            "Main is up to date now. Your files and branch weren't touched.",
+        )),
+        Ok(MainRefOutcome::AlreadyUpToDate) => Ok(SimpleResult::new(
+            "up_to_date",
+            "Main is already up to date.",
+        )),
+        Ok(MainRefOutcome::MainHasLocalChanges) => Ok(SimpleResult::new(
+            "main_has_changes",
+            "Your main has changes the team doesn't have yet, so it can't be moved forward. Ask a developer to take a look.",
+        )),
+        Ok(MainRefOutcome::Failed(detail)) => Ok(SimpleResult {
+            status: "failed".into(),
+            message: "Couldn't update main. Ask a developer to take a look.".into(),
+            detail: Some(detail),
+        }),
+        Err(e) => Err(git_error_message(&e, &path, "the update")),
+    }
+}
+
+/// Opens `file` (relative to the repo) in the chosen editor.
 #[tauri::command]
 pub async fn open_editor(
-    file_path: PathBuf,
+    repo: PathBuf,
+    file: String,
     engine: State<'_, SharedEngine>,
 ) -> Result<(), String> {
-    let editor = {
-        let state = engine.lock().await;
-        state.settings.editor.clone()
-    };
-
-    let cmd_name = match editor.as_deref() {
-        Some("VS Code") => "code",
-        Some("Sublime Text") => "subl",
-        Some("Text Editor") | Some("GNOME Text Editor") => "gnome-text-editor",
-        _ => "xdg-open",
-    };
-
-    Command::new(cmd_name)
-        .arg(&file_path)
-        .spawn()
-        .map_err(|e| format!("Failed to open editor: {}", e))?;
-
-    Ok(())
+    ensure_watched(&engine, &repo).await?;
+    let editor = engine.state.lock().await.settings.editor.clone();
+    blocking(move || {
+        let full = resolve_in_repo(&repo, &file)?;
+        editors::open(editor.as_deref(), &full)
+    })
+    .await?
 }
 
 #[tauri::command]
 pub async fn pick_folder() -> Result<Option<PathBuf>, String> {
-    let output = Command::new("zenity")
-        .args(["--file-selection", "--directory", "--title=Select Folder to Watch"])
-        .output();
-
-    match output {
-        Ok(out) if out.status.success() => {
-            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if s.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(PathBuf::from(s)))
+    blocking(|| {
+        let out = Command::new("zenity")
+            .args([
+                "--file-selection",
+                "--directory",
+                "--title=Select Folder to Watch",
+            ])
+            .output();
+        match out {
+            Ok(out) if out.status.success() => {
+                let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                (!s.is_empty()).then(|| PathBuf::from(s))
             }
+            _ => None,
         }
-        _ => Ok(None),
+    })
+    .await
+}
+
+/// Editors found on this computer, then "System default app".
+#[tauri::command]
+pub async fn detect_editors() -> Result<Vec<String>, String> {
+    blocking(|| {
+        editors::detect(&editors::load_entries(&editors::app_dirs()))
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect()
+    })
+    .await
+}
+
+fn home_dir() -> PathBuf {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default()
+}
+
+/// Looks for repos in one folder (same depth and skip rules as the suggestions).
+fn scan(folder: PathBuf, home: &Path) -> SuggestedFolder {
+    let repos = repobell_core::discover(std::slice::from_ref(&folder), 3);
+    let display = match folder.strip_prefix(home) {
+        Ok(rel) if !home.as_os_str().is_empty() => format!("~/{}", rel.display()),
+        _ => folder.display().to_string(),
+    };
+    SuggestedFolder {
+        path: folder,
+        display,
+        repos,
     }
 }
 
-#[tauri::command]
-pub fn detect_editors() -> Vec<String> {
-    let mut editors = Vec::new();
-    // Check known commands
-    let candidates = [
-        ("code", "VS Code"),
-        ("subl", "Sublime Text"),
-        ("gnome-text-editor", "Text Editor"),
-        ("gedit", "Text Editor"),
-        ("idea", "IntelliJ IDEA"),
-        ("pycharm", "PyCharm"),
-        ("webstorm", "WebStorm"),
-    ];
-
-    for (cmd, name) in candidates {
-        if Command::new("which").arg(cmd).output().map_or(false, |o| o.status.success()) {
-            if !editors.contains(&name.to_string()) {
-                editors.push(name.to_string());
-            }
-        }
-    }
-
-    editors.push("System default app".to_string());
-    editors
+fn suggested_folders() -> Vec<SuggestedFolder> {
+    let home = home_dir();
+    ["projects", "code", "work", "Documents", "design"]
+        .map(|d| home.join(d))
+        .into_iter()
+        .filter(|f| f.is_dir())
+        .map(|f| scan(f, &home))
+        .filter(|g| !g.repos.is_empty())
+        .collect()
 }
 
 #[tauri::command]
-pub fn discover_suggested_folders() -> Vec<SuggestedFolder> {
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
-    let candidates = [
-        home.join("projects"),
-        home.join("code"),
-        home.join("work"),
-        home.join("Documents"),
-        home.join("design"),
-    ];
+pub async fn discover_suggested_folders() -> Result<Vec<SuggestedFolder>, String> {
+    blocking(suggested_folders).await
+}
 
-    let mut results = Vec::new();
-    for folder in candidates {
-        if folder.exists() && folder.is_dir() {
-            let repos = repobell_core::discover(&[folder.clone()], 3);
-            if !repos.is_empty() {
-                let repo_names: Vec<String> = repos
-                    .iter()
-                    .map(|p| p.file_name().map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into_owned()))
-                    .collect();
+/// Looks for repos in one folder the user added by hand.
+#[tauri::command]
+pub async fn scan_folder(path: PathBuf) -> Result<SuggestedFolder, String> {
+    if !path.is_dir() {
+        return Err("That folder doesn't exist.".into());
+    }
+    blocking(move || scan(path, &home_dir())).await
+}
 
-                let display = if folder.starts_with(&home) {
-                    format!("~/{}", folder.strip_prefix(&home).unwrap().display())
-                } else {
-                    folder.display().to_string()
-                };
-
-                results.push(SuggestedFolder {
-                    path: folder,
-                    display,
-                    repos: repo_names,
-                });
+/// Whether the top-bar bell can show: `enabled`, `disabled`, or `unknown` (not GNOME, or the
+/// check isn't possible, so the window never blocks on it).
+#[tauri::command]
+pub async fn check_tray() -> Result<String, String> {
+    blocking(|| {
+        let gnome = std::env::var("XDG_CURRENT_DESKTOP").is_ok_and(|d| d.contains("GNOME"));
+        if !gnome {
+            return "unknown";
+        }
+        for uuid in [
+            "ubuntu-appindicators@ubuntu.com",
+            "appindicatorsupport@rgcjonas.gmail.com",
+        ] {
+            match Command::new("gnome-extensions")
+                .args(["info", uuid])
+                .output()
+            {
+                Err(_) => return "unknown",
+                Ok(out) if extension_enabled(&String::from_utf8_lossy(&out.stdout)) => {
+                    return "enabled";
+                }
+                Ok(_) => {}
             }
         }
-    }
-    results
+        // A missing extension counts as disabled; the help text covers both.
+        "disabled"
+    })
+    .await
+    .map(str::to_string)
+}
+
+/// Reads `gnome-extensions info` output: true when its State line says ENABLED or ACTIVE.
+fn extension_enabled(info: &str) -> bool {
+    info.lines()
+        .find_map(|l| l.trim().strip_prefix("State:"))
+        .is_some_and(|s| matches!(s.trim(), "ENABLED" | "ACTIVE"))
 }
 
 #[tauri::command]
@@ -326,3 +615,109 @@ pub async fn hide_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window.hide().map_err(|e| e.to_string())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn repo(path: &str, ignored: bool) -> RepoCardView {
+        RepoCardView {
+            path: PathBuf::from(path),
+            ignored,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn reads_extension_state() {
+        assert!(extension_enabled("  Name: X\n  State: ENABLED\n"));
+        assert!(extension_enabled("  State: ACTIVE"));
+        assert!(!extension_enabled("  State: DISABLED"));
+        assert!(!extension_enabled(""));
+    }
+
+    #[test]
+    fn only_watched_repos_pass() {
+        let repos = [repo("/w/a", false), repo("/w/b", true)];
+        assert!(is_watched(&repos, Path::new("/w/a")));
+        assert!(
+            !is_watched(&repos, Path::new("/w/b")),
+            "ignored repos aren't watched"
+        );
+        assert!(!is_watched(&repos, Path::new("/w/a/../c")));
+        assert!(!is_watched(&repos, Path::new("/etc")));
+    }
+
+    #[test]
+    fn files_must_stay_inside_the_repo() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir_all(repo.join("src")).unwrap();
+        std::fs::write(repo.join("src/a.txt"), "x").unwrap();
+        std::fs::write(dir.path().join("secret.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(dir.path().join("secret.txt"), repo.join("link.txt")).unwrap();
+
+        let ok = resolve_in_repo(&repo, "src/a.txt").unwrap();
+        assert!(ok.ends_with("repo/src/a.txt"));
+        assert!(resolve_in_repo(&repo, "../secret.txt").is_err());
+        assert!(resolve_in_repo(&repo, "src/../../secret.txt").is_err());
+        assert!(
+            resolve_in_repo(&repo, "link.txt").is_err(),
+            "symlink out of the repo"
+        );
+        assert!(resolve_in_repo(&repo, "/etc/passwd").is_err());
+        assert!(resolve_in_repo(&repo, "").is_err());
+        assert!(resolve_in_repo(&repo, "missing.txt").is_err());
+        assert!(resolve_in_repo(&repo, ".").is_err());
+    }
+
+    #[test]
+    fn plans_round_trip_and_read_plainly() {
+        let plans = [
+            Plan::UpToDate,
+            Plan::FastForward {
+                downloads: 4,
+                set_aside: false,
+            },
+            Plan::FastForward {
+                downloads: 1,
+                set_aside: true,
+            },
+            Plan::Combine {
+                downloads: 2,
+                yours: 1,
+                set_aside: false,
+            },
+            Plan::Blocked(Blocked::Detached),
+            Plan::Blocked(Blocked::NoUpstream),
+            Plan::Blocked(Blocked::InProgress),
+            Plan::Blocked(Blocked::SideBranch),
+        ];
+        for p in plans {
+            assert_eq!(PlanView::from_plan(&p, None).to_plan(), Some(p));
+        }
+        let msg = |p| PlanView::from_plan(&p, Some("fix-nav")).message;
+        assert_eq!(
+            msg(Plan::FastForward {
+                downloads: 4,
+                set_aside: false
+            }),
+            "This will download 4 changes"
+        );
+        assert_eq!(
+            msg(Plan::FastForward {
+                downloads: 1,
+                set_aside: true
+            }),
+            "This will download 1 change. Your unsaved changes are set aside and put back"
+        );
+        assert!(msg(Plan::Blocked(Blocked::SideBranch)).starts_with("You're on fix-nav"));
+        let unknown = PlanView {
+            kind: "nope".into(),
+            downloads: 0,
+            yours: 0,
+            set_aside: false,
+            message: String::new(),
+        };
+        assert_eq!(unknown.to_plan(), None);
+    }
+}

@@ -14,10 +14,12 @@ fn clean_main_status() -> RepoStatus {
     RepoStatus {
         branch: Some("main".into()),
         main_branch: Some("main".into()),
+        on_main: true,
         upstream: Some("origin/main".into()),
         behind: 0,
         ahead: 0,
         unsaved: false,
+        main_behind: 0,
     }
 }
 
@@ -172,4 +174,37 @@ fn plain_folder_is_not_a_repo() {
     let result = status(&plain);
 
     assert!(matches!(result, Err(GitError::NotARepo)), "got {result:?}");
+}
+
+#[test]
+fn on_main_is_false_on_a_side_branch() {
+    let tmp = TempDir::new().unwrap();
+    let (_remote, work, _other) = setup_remote_and_clone(tmp.path());
+    assert!(status(&work).unwrap().on_main);
+
+    git(&work, &["switch", "-c", "feature"]);
+    let st = status(&work).unwrap();
+
+    assert_eq!(st.branch.as_deref(), Some("feature"));
+    assert_eq!(st.main_branch.as_deref(), Some("main"));
+    assert!(!st.on_main);
+}
+
+#[test]
+fn main_behind_counts_only_on_a_side_branch() {
+    let tmp = TempDir::new().unwrap();
+    let (_remote, work, other) = setup_remote_and_clone(tmp.path());
+    push_new_commits(&other, 2);
+    git(&work, &["fetch"]);
+    assert_eq!(
+        status(&work).unwrap().main_behind,
+        0,
+        "on main: Update covers it"
+    );
+
+    git(&work, &["checkout", "-b", "side"]);
+    assert_eq!(status(&work).unwrap().main_behind, 2);
+
+    git(&work, &["branch", "-f", "main", "origin/main"]);
+    assert_eq!(status(&work).unwrap().main_behind, 0);
 }
