@@ -36,6 +36,23 @@ fn show_and_position_window(window: &tauri::WebviewWindow) {
     let _ = window.set_focus();
 }
 
+/// A fresh folder for the tray icon files on each launch. The tray names its files
+/// `tray-icon-<id>-<counter>.png` with a counter that restarts at zero, and GNOME's AppIndicator
+/// extension caches images by path, so reusing a folder shows the previous run's icons.
+fn tray_icon_dir() -> std::path::PathBuf {
+    let base = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("repobell-tray");
+    // Icons from earlier launches are never read again.
+    let _ = std::fs::remove_dir_all(&base);
+    let launch = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    base.join(launch.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let engine: SharedEngine = watcher::Shared::new();
@@ -86,6 +103,7 @@ pub fn run() {
 
                 TrayIconBuilder::with_id("main-tray")
                     .icon(icon)
+                    .temp_dir_path(tray_icon_dir())
                     .menu(&menu)
                     .show_menu_on_left_click(true)
                     .on_menu_event({

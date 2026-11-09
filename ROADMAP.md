@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Review fixes are done on branch review-fixes (not merged yet). Next: merge, see CI pass on GitHub, then tag v0.1.0 for the first private release.
+Current step: Review fixes are merged into main and CI passes on GitHub. Next: tag v0.1.0 for the first private release.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -59,7 +59,7 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [x] Check the name on npm, crates.io, a domain and GitHub
 - [x] Feed grouped by person and day
 - [x] Review fixes (41 findings from the 2026-11-09 review)
-- [ ] CI and release workflow (written, not yet run on GitHub)
+- [x] CI and release workflow (CI passed on GitHub on 2026-11-09; release workflow runs on the first tag)
 
 ## Later
 
