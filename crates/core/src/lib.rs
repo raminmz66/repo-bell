@@ -1,5 +1,6 @@
 //! Git logic for RepoBell. Every Git call goes through the `git` command line.
 
+pub mod branches;
 pub mod discover;
 pub mod errors;
 pub mod feed;
@@ -8,6 +9,7 @@ mod git;
 pub mod status;
 pub mod update;
 
+pub use branches::{has_candidates, old_branches, server_branches, OldBranch};
 pub use discover::discover;
 pub use errors::{classify, Problem};
 pub use feed::{feed, remote_main_sha, Change, Feed};

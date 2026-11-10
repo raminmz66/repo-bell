@@ -71,7 +71,7 @@ pub fn fetch_main_with_timeout(
     }
 }
 
-fn ssh_env(repo: &Path) -> Vec<(&'static str, &'static str)> {
+pub(crate) fn ssh_env(repo: &Path) -> Vec<(&'static str, &'static str)> {
     let ssh = "ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3";
     let user_ssh = std::env::var_os("GIT_SSH_COMMAND").is_some()
         || crate::git::run_background(repo, &["config", "--get", "core.sshCommand"])
