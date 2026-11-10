@@ -41,7 +41,7 @@ Every listed branch was pushed before and has since been deleted on the server, 
 1. Merged: Git confirms these are fully inside the team's main. All are ticked. One button deletes the ticked ones ("Delete 3 branches").
 2. May not be merged: Git can't confirm they are inside main. This usually means a squash merge, but it can also be an abandoned pull request. None are ticked; the user ticks each one on purpose. Each row shows the branch name and how long ago its last commit was, so the user can judge.
 
-After a delete, the card shows an Undo banner in the same style as Update's Undo: "Deleted 3 branches. You can undo it." Undo brings every deleted branch back exactly as it was.
+After a delete, the card shows an Undo banner in the same style as Update's Undo: "Deleted 3 branches. You can undo it." Undo brings each deleted branch back at the same commit, with its upstream. A second delete adds to the Undo list, and Undo brings back every branch deleted since the last Undo.
 
 If both groups are empty, the line is not shown.
 
@@ -53,6 +53,8 @@ If both groups are empty, the line is not shown.
 - A branch is listed only when its upstream branch no longer exists on the server. Long-lived branches such as `develop` or `staging` stay on the server, so they are never listed, even right after they are merged into main. Teams that never delete server branches see nothing; GitHub can delete them after each merge with one repo setting. (Ramin's choice, 2026-11-10.)
 - Merged means the branch tip is reachable from `origin/<main>` (the copy RepoBell already fetches). Verified on Git 2.34.1: `git branch --merged origin/main` finds normal merges and does not find squash merges.
 - May not be merged means a listed branch that is not in the Merged group. Verified on Git 2.34.1: `git ls-remote --heads origin` lists remaining branches and a deleted squash-merged branch is absent.
+- Branches in the middle of a rebase or bisect count as checked out and are never listed.
+- A branch pushed after the last server answer is not listed until RepoBell asks the server again.
 - RepoBell never deletes or pushes anything on the server.
 - Undo lasts as long as Update's Undo does: until the repo changes or the window closes. It recreates each branch at the commit it pointed to, with its upstream setting. If a branch of the same name exists again by then, that branch is skipped and the result says so.
 - There is no extra prompt before deleting. The user already chose what to delete by ticking, and Undo covers mistakes.
