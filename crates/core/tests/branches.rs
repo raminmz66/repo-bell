@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
 
+use std::collections::BTreeSet;
+
 use repobell_core::{
-    can_restore, delete_branches, has_candidates, old_branches, restore_branches, server_branches,
+    can_restore, candidate_upstreams, delete_branches, has_candidates, old_branches,
+    restore_branches, server_branches, DeletedBranch,
 };
 use tempfile::TempDir;
 
@@ -14,9 +17,17 @@ fn setup() -> (TempDir, PathBuf, PathBuf) {
     (tmp, work, other)
 }
 
+/// A fresh server answer and the refs it covers.
+fn ask(work: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
+    (
+        server_branches(work).unwrap(),
+        candidate_upstreams(work, "main").unwrap(),
+    )
+}
+
 fn old(work: &Path) -> Vec<(String, bool)> {
-    let server = server_branches(work).unwrap();
-    old_branches(work, "main", &server)
+    let (server, asked) = ask(work);
+    old_branches(work, "main", &server, &asked)
         .unwrap()
         .into_iter()
         .map(|b| (b.name, b.merged))
@@ -45,6 +56,12 @@ fn merge_into_main(work: &Path, name: &str) {
 fn delete_on_server(work: &Path, name: &str) {
     git(work, &["push", "origin", "--delete", name]);
     git(work, &["fetch"]);
+}
+
+/// A branch deleted on the server without being merged: its tip is not main's tip.
+fn unmerged_gone_branch(work: &Path, name: &str) {
+    push_branch(work, name);
+    delete_on_server(work, name);
 }
 
 fn gone_branch(work: &Path, name: &str) {
@@ -160,8 +177,8 @@ fn last_commit_time_is_the_tip_commit_time() {
         .trim()
         .parse()
         .unwrap();
-    let server = server_branches(&work).unwrap();
-    let got = old_branches(&work, "main", &server).unwrap();
+    let (server, asked) = ask(&work);
+    let got = old_branches(&work, "main", &server, &asked).unwrap();
     assert_eq!(got[0].last_commit_time, want);
 }
 
@@ -174,8 +191,8 @@ fn pick(work: &Path, name: &str) -> (String, String) {
 }
 
 fn delete(work: &Path, picks: &[(String, String)]) -> repobell_core::DeleteOutcome {
-    let server = server_branches(work).unwrap();
-    delete_branches(work, "main", picks, &server).unwrap()
+    let (server, asked) = ask(work);
+    delete_branches(work, "main", picks, &server, &asked).unwrap()
 }
 
 fn exists(work: &Path, name: &str) -> bool {
@@ -242,8 +259,9 @@ fn delete_skips_branch_removed_by_hand() {
 #[test]
 fn restore_brings_back_sha_and_upstream() {
     let (_t, work, _o) = setup();
-    gone_branch(&work, "feat");
+    unmerged_gone_branch(&work, "feat");
     let p = pick(&work, "feat");
+    assert_ne!(p.1, sha_of(&work, "HEAD"));
     let out = delete(&work, std::slice::from_ref(&p));
     assert!(can_restore(&work, &out.deleted));
     let r = restore_branches(&work, &out.deleted).unwrap();
@@ -262,10 +280,12 @@ fn restore_brings_back_sha_and_upstream() {
 #[test]
 fn restore_skips_taken_name() {
     let (_t, work, _o) = setup();
-    gone_branch(&work, "feat");
+    unmerged_gone_branch(&work, "feat");
+    let old_sha = sha_of(&work, "feat");
     let out = delete(&work, &[pick(&work, "feat")]);
     git(&work, &["branch", "feat"]);
     let new_sha = sha_of(&work, "feat");
+    assert_ne!(new_sha, old_sha);
     assert!(!can_restore(&work, &out.deleted));
     let r = restore_branches(&work, &out.deleted).unwrap();
     assert_eq!(r.skipped, ["feat"]);
@@ -276,12 +296,121 @@ fn restore_skips_taken_name() {
 #[test]
 fn restore_slash_unicode_names() {
     let (_t, work, _o) = setup();
-    gone_branch(&work, "feature/login");
-    gone_branch(&work, "fix/ünï");
+    unmerged_gone_branch(&work, "feature/login");
+    unmerged_gone_branch(&work, "fix/ünï");
     let picks = [pick(&work, "feature/login"), pick(&work, "fix/ünï")];
     let out = delete(&work, &picks);
     assert_eq!(out.deleted.len(), 2);
+    for n in ["feature/login", "fix/ünï"] {
+        git_expect_fail(&work, &["config", "--get", &format!("branch.{n}.merge")]);
+    }
     let r = restore_branches(&work, &out.deleted).unwrap();
     assert_eq!(r.restored.len(), 2);
-    assert_eq!(sha_of(&work, "fix/ünï"), picks[1].1);
+    for (name, sha) in &picks {
+        assert_eq!(&sha_of(&work, name), sha);
+        assert_eq!(
+            git(
+                &work,
+                &["config", "--get", &format!("branch.{name}.remote")]
+            )
+            .trim(),
+            "origin"
+        );
+        assert_eq!(
+            git(&work, &["config", "--get", &format!("branch.{name}.merge")]).trim(),
+            format!("refs/heads/{name}")
+        );
+    }
+}
+
+#[test]
+fn two_delete_batches_can_both_be_undone() {
+    let (_t, work, _o) = setup();
+    unmerged_gone_branch(&work, "a");
+    unmerged_gone_branch(&work, "b");
+    let first = delete(&work, &[pick(&work, "a")]).deleted;
+    let mut list = delete(&work, &[pick(&work, "b")]).deleted;
+    // The app keeps the newest batch first.
+    list.extend(first);
+    let r = restore_branches(&work, &list).unwrap();
+    assert_eq!(r.restored, ["b", "a"]);
+}
+
+#[test]
+fn name_deleted_twice_restores_the_newest_commit() {
+    let (_t, work, _o) = setup();
+    unmerged_gone_branch(&work, "feat");
+    let older = sha_of(&work, "feat");
+    let newer = sha_of(&work, "HEAD");
+    let d = |sha: &str| DeletedBranch {
+        name: "feat".into(),
+        sha: sha.into(),
+        remote: String::new(),
+        merge: String::new(),
+    };
+    git(&work, &["branch", "-D", "feat"]);
+    let r = restore_branches(&work, &[d(&newer), d(&older)]).unwrap();
+    assert_eq!(r.restored, ["feat"]);
+    assert_eq!(r.skipped, ["feat"]);
+    assert_eq!(sha_of(&work, "feat"), newer);
+}
+
+#[test]
+fn branch_in_a_paused_rebase_is_not_listed_or_deleted() {
+    let (_t, work, _o) = setup();
+    commit_file(&work, "c.txt", "base\n", "c");
+    git(&work, &["push", "origin", "main"]);
+    git(&work, &["checkout", "-b", "feat"]);
+    commit_file(&work, "c.txt", "feat\n", "feat change");
+    git(&work, &["push", "-u", "origin", "feat"]);
+    git(&work, &["checkout", "main"]);
+    commit_file(&work, "c.txt", "main\n", "main change");
+    git(&work, &["push", "origin", "main"]);
+    delete_on_server(&work, "feat");
+    git(&work, &["checkout", "feat"]);
+    git_expect_fail(&work, &["rebase", "origin/main"]);
+    let p = pick(&work, "feat");
+    assert!(old(&work).is_empty());
+    let out = delete(&work, &[p]);
+    assert_eq!(out.skipped, ["feat"]);
+    assert!(exists(&work, "feat"));
+}
+
+#[test]
+fn branch_in_a_bisect_is_not_listed() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "feat");
+    git(&work, &["checkout", "feat"]);
+    git(&work, &["bisect", "start"]);
+    git(&work, &["checkout", "--detach"]);
+    assert!(old(&work).is_empty());
+}
+
+#[test]
+fn branch_pushed_after_the_server_answer_is_not_listed() {
+    let (_t, work, _o) = setup();
+    push_branch(&work, "old");
+    let (server, asked) = ask(&work);
+    push_branch(&work, "fresh");
+    delete_on_server(&work, "fresh");
+    assert!(old_branches(&work, "main", &server, &asked)
+        .unwrap()
+        .is_empty());
+    let out = delete_branches(&work, "main", &[pick(&work, "fresh")], &server, &asked).unwrap();
+    assert_eq!(out.skipped, ["fresh"]);
+    assert!(exists(&work, "fresh"));
+    assert_eq!(old(&work), [("fresh".to_string(), false)]);
+}
+
+#[test]
+fn remote_not_named_origin_is_ignored() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "feat");
+    git(&work, &["remote", "rename", "origin", "upstream"]);
+    assert!(!has_candidates(&work, "main").unwrap());
+    assert!(candidate_upstreams(&work, "main").unwrap().is_empty());
+    let none = BTreeSet::new();
+    assert!(old_branches(&work, "main", &none, &none)
+        .unwrap()
+        .is_empty());
 }

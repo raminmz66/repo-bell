@@ -118,6 +118,8 @@ pub struct AppStateView {
 pub struct ServerBranches {
     pub checked_at: u64,
     pub heads: BTreeSet<String>,
+    /// The server refs the answer covers: the candidates' upstreams when it was asked.
+    pub asked: BTreeSet<String>,
 }
 
 /// How long a server branch list is trusted before it is asked for again.
@@ -128,6 +130,15 @@ pub struct Cleanup {
     pub server: BTreeMap<PathBuf, ServerBranches>,
     /// What the last cleanup deleted, per repo, so it can be undone.
     pub undo: BTreeMap<PathBuf, Vec<DeletedBranch>>,
+}
+
+impl Cleanup {
+    /// Adds a delete batch to the repo's Undo list, newest first.
+    pub fn add_undo(&mut self, path: PathBuf, mut deleted: Vec<DeletedBranch>) {
+        let entry = self.undo.entry(path).or_default();
+        deleted.append(entry);
+        *entry = deleted;
+    }
 }
 
 pub struct EngineState {
@@ -354,7 +365,7 @@ pub struct Ctx<'a> {
 }
 
 /// Asks the server which branches it has, when the repo has local branches worth asking about
-/// and the saved answer is missing or old. Network: callers run it without the repo's lock.
+/// and the saved answer is missing, old, or does not cover every candidate. Network: callers run it without the repo's lock.
 /// A failed ask keeps the old answer.
 pub fn refresh_server_branches(
     path: &Path,
@@ -363,13 +374,16 @@ pub fn refresh_server_branches(
     now: u64,
     force: bool,
 ) {
-    let fresh = cache
-        .get(path)
-        .is_some_and(|c| now.saturating_sub(c.checked_at) <= SERVER_BRANCHES_MAX_AGE);
-    if fresh && !force {
+    let Ok(asked) = repobell_core::candidate_upstreams(path, main_branch) else {
+        return;
+    };
+    if asked.is_empty() {
         return;
     }
-    if !repobell_core::has_candidates(path, main_branch).unwrap_or(false) {
+    let fresh = cache.get(path).is_some_and(|c| {
+        now.saturating_sub(c.checked_at) <= SERVER_BRANCHES_MAX_AGE && asked.is_subset(&c.asked)
+    });
+    if fresh && !force {
         return;
     }
     if let Ok(heads) = repobell_core::server_branches(path) {
@@ -378,6 +392,7 @@ pub fn refresh_server_branches(
             ServerBranches {
                 checked_at: now,
                 heads,
+                asked,
             },
         );
     }
@@ -428,14 +443,16 @@ pub fn build_view(
         .undo
         .get(&v.path)
         .is_some_and(|p| repobell_core::can_undo(&v.path, p));
-    // ponytail: shown even after a failed fetch, the list is local data plus the saved answer.
+    // Shown even after a failed fetch: the list is local data plus the saved answer.
     v.can_undo_cleanup = ctx
         .cleanup
         .undo
         .get(&v.path)
         .is_some_and(|d| repobell_core::can_restore(&v.path, d));
     if let Some(server) = ctx.cleanup.server.get(&v.path) {
-        if let Ok(list) = repobell_core::old_branches(&v.path, &v.main_branch, &server.heads) {
+        if let Ok(list) =
+            repobell_core::old_branches(&v.path, &v.main_branch, &server.heads, &server.asked)
+        {
             v.old_branches = list
                 .into_iter()
                 .map(|b| OldBranchView {

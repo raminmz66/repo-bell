@@ -372,3 +372,36 @@ fn no_server_call_without_candidates() {
     check(&settings, &mut cleanup);
     assert!(cleanup.server.is_empty());
 }
+
+#[test]
+fn candidate_missing_from_the_answer_triggers_a_refresh() {
+    let (_tmp, remote, me, settings) = merged_feat();
+    let mut cleanup = Cleanup::default();
+    assert!(check(&settings, &mut cleanup).old_branches.is_empty());
+    git(&me, &["branch", "feat2", "feat"]);
+    git(&me, &["push", "-q", "-u", "origin", "feat2"]);
+    git(&remote, &["branch", "-D", "feat"]);
+    // The saved answer is fresh, but it never covered feat2, so the server is asked again.
+    let card = check(&settings, &mut cleanup);
+    let names: Vec<_> = card.old_branches.iter().map(|b| b.name.as_str()).collect();
+    assert_eq!(names, ["feat"]);
+}
+
+#[test]
+fn second_delete_adds_to_the_undo_list_newest_first() {
+    let d = |n: &str| repobell_core::DeletedBranch {
+        name: n.into(),
+        sha: "1".repeat(40),
+        remote: String::new(),
+        merge: String::new(),
+    };
+    let mut cleanup = Cleanup::default();
+    let path = std::path::PathBuf::from("/r");
+    cleanup.add_undo(path.clone(), vec![d("a")]);
+    cleanup.add_undo(path.clone(), vec![d("b"), d("c")]);
+    let names: Vec<_> = cleanup.undo[&path]
+        .iter()
+        .map(|x| x.name.as_str())
+        .collect();
+    assert_eq!(names, ["b", "c", "a"]);
+}

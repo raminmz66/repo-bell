@@ -553,14 +553,14 @@ pub async fn delete_old_branches(
     let engine = engine.inner();
     let _guard = engine.locks.get(&path).lock_owned().await;
     let main = main_branch_of(engine, &path).await;
-    let Some(server) = engine
+    let Some((server, asked)) = engine
         .state
         .lock()
         .await
         .cleanup
         .server
         .get(&path)
-        .map(|s| s.heads.clone())
+        .map(|s| (s.heads.clone(), s.asked.clone()))
     else {
         return Ok(SimpleResult::new(
             "not_possible",
@@ -570,12 +570,13 @@ pub async fn delete_old_branches(
     let picks: Vec<(String, String)> = branches.into_iter().map(|b| (b.name, b.sha)).collect();
     let p = path.clone();
     let outcome =
-        blocking(move || repobell_core::delete_branches(&p, &main, &picks, &server)).await?;
+        blocking(move || repobell_core::delete_branches(&p, &main, &picks, &server, &asked))
+            .await?;
     let out = outcome.map_err(|e| git_error_message(&e, &path, "delete branches"))?;
     let done = out.deleted.len();
     if done > 0 {
         let mut st = engine.state.lock().await;
-        st.cleanup.undo.insert(path.clone(), out.deleted);
+        st.cleanup.add_undo(path.clone(), out.deleted);
         st.generation += 1;
     }
     watcher::refresh_one(&app, engine, &path).await;

@@ -33,6 +33,15 @@ pub fn has_candidates(repo: &Path, main_branch: &str) -> Result<bool, GitError> 
     Ok(!candidates(repo, main_branch)?.is_empty())
 }
 
+/// The server refs (such as `refs/heads/feat`) that the current candidates track. A server answer
+/// is only good for branches whose ref it was asked about.
+pub fn candidate_upstreams(repo: &Path, main_branch: &str) -> Result<BTreeSet<String>, GitError> {
+    Ok(candidates(repo, main_branch)?
+        .into_iter()
+        .map(|c| c.remote_ref)
+        .collect())
+}
+
 /// The branches on `origin`, as full refs such as `refs/heads/feat` (from `git ls-remote --heads`).
 ///
 /// Fails when there is no `origin` or it cannot be reached; callers treat that as "no answer"
@@ -55,20 +64,23 @@ pub fn server_branches(repo: &Path) -> Result<BTreeSet<String>, GitError> {
 ///
 /// A branch is listed only when all of these hold:
 /// - it tracks a branch on `origin` (a branch never pushed is never listed),
-/// - that server branch is not `server` (the answer of `server_branches`) any more,
+/// - that server branch was covered by the answer (`asked`: the refs that were candidates when
+///   the server was asked) and is not in `server` (the answer of `server_branches`) any more,
 /// - it is not the main branch, does not track the main branch, and is not checked out in any
-///   worktree (the main checkout included).
+///   worktree (the main checkout included). A branch in the middle of a rebase or bisect counts
+///   as checked out.
 ///
 /// `merged` compares the tip with the local copy of `origin/<main_branch>`, so fetch main first.
 pub fn old_branches(
     repo: &Path,
     main_branch: &str,
     server: &BTreeSet<String>,
+    asked: &BTreeSet<String>,
 ) -> Result<Vec<OldBranch>, GitError> {
     let main_ref = format!("refs/remotes/origin/{main_branch}");
     let mut out = Vec::new();
     for c in candidates(repo, main_branch)? {
-        if server.contains(&c.remote_ref) {
+        if server.contains(&c.remote_ref) || !asked.contains(&c.remote_ref) {
             continue;
         }
         let merged =
@@ -100,10 +112,26 @@ fn candidates(repo: &Path, main_branch: &str) -> Result<Vec<Candidate>, GitError
         ],
     )?;
     let worktrees = git::run_background(repo, &["worktree", "list", "--porcelain"])?;
-    let checked_out: BTreeSet<&str> = worktrees
+    let mut checked_out: BTreeSet<String> = worktrees
         .lines()
         .filter_map(|l| l.strip_prefix("branch refs/heads/"))
+        .map(str::to_string)
         .collect();
+    // A branch in the middle of a rebase or bisect is not HEAD, but git treats it as checked out.
+    for wt in worktrees
+        .lines()
+        .filter_map(|l| l.strip_prefix("worktree "))
+    {
+        for file in [
+            "rebase-merge/head-name",
+            "rebase-apply/head-name",
+            "BISECT_START",
+        ] {
+            if let Some(name) = in_progress_branch(Path::new(wt), file) {
+                checked_out.insert(name);
+            }
+        }
+    }
     let main_ref = format!("refs/heads/{main_branch}");
     Ok(refs
         .lines()
@@ -129,6 +157,14 @@ fn candidates(repo: &Path, main_branch: &str) -> Result<Vec<Candidate>, GitError
         .collect())
 }
 
+/// The branch a rebase or bisect in worktree `wt` is working on, read from the state file `file`.
+fn in_progress_branch(wt: &Path, file: &str) -> Option<String> {
+    let rel = git::run_background(wt, &["rev-parse", "--git-path", file]).ok()?;
+    let text = std::fs::read_to_string(wt.join(rel.trim())).ok()?;
+    let text = text.trim();
+    Some(text.strip_prefix("refs/heads/").unwrap_or(text).to_string()).filter(|n| !n.is_empty())
+}
+
 /// A branch removed by `delete_branches`, with what `restore_branches` needs to bring it back.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeletedBranch {
@@ -143,14 +179,14 @@ pub struct DeletedBranch {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct DeleteOutcome {
     pub deleted: Vec<DeletedBranch>,
-    /// Picks that were not deleted: not listed any more, moved, or already gone.
+    /// Picks that were not deleted: not listed any more, moved, gone, or Git refused.
     pub skipped: Vec<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct RestoreOutcome {
     pub restored: Vec<String>,
-    /// Names that could not be restored because the name is taken again.
+    /// Names that were not restored: the name is taken again, or the commit is missing.
     pub skipped: Vec<String>,
 }
 
@@ -168,8 +204,9 @@ pub fn delete_branches(
     main_branch: &str,
     picks: &[(String, String)],
     server: &BTreeSet<String>,
+    asked: &BTreeSet<String>,
 ) -> Result<DeleteOutcome, GitError> {
-    let listed = old_branches(repo, main_branch, server)?;
+    let listed = old_branches(repo, main_branch, server, asked)?;
     let mut out = DeleteOutcome::default();
     for (name, sha) in picks {
         if !listed.iter().any(|b| &b.name == name && &b.sha == sha) {

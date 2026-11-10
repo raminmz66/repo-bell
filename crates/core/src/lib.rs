@@ -10,8 +10,8 @@ pub mod status;
 pub mod update;
 
 pub use branches::{
-    can_restore, delete_branches, has_candidates, old_branches, restore_branches, server_branches,
-    DeleteOutcome, DeletedBranch, OldBranch, RestoreOutcome,
+    can_restore, candidate_upstreams, delete_branches, has_candidates, old_branches,
+    restore_branches, server_branches, DeleteOutcome, DeletedBranch, OldBranch, RestoreOutcome,
 };
 pub use discover::discover;
 pub use errors::{classify, Problem};
