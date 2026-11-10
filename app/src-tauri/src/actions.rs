@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -441,6 +442,183 @@ pub async fn undo_repo(
     }
 }
 
+#[derive(Clone, Copy)]
+enum CleanupVerb {
+    Delete,
+    Undo,
+}
+
+fn cleanup_message(done: usize, skipped: &[String], verb: CleanupVerb) -> String {
+    let branches = |n: usize| format!("{n} branch{}", if n == 1 { "" } else { "es" });
+    let mut msg = match verb {
+        CleanupVerb::Delete if done == 0 => {
+            return "Nothing was deleted. These branches changed since you looked.".into();
+        }
+        CleanupVerb::Delete => format!("Deleted {}. You can undo it.", branches(done)),
+        CleanupVerb::Undo if done == 0 => "Nothing was brought back.".to_string(),
+        CleanupVerb::Undo => format!("Brought back {}.", branches(done)),
+    };
+    match (skipped, verb) {
+        ([], _) => {}
+        ([one], CleanupVerb::Delete) => {
+            msg += &format!(" Skipped {one} because it changed since you looked.");
+        }
+        ([one], CleanupVerb::Undo) => {
+            msg += &format!(" Skipped {one} because a branch with that name exists again.");
+        }
+        (many, CleanupVerb::Delete) => {
+            msg += &format!(
+                " Skipped {} because they changed since you looked: {}.",
+                branches(many.len()),
+                many.join(", ")
+            );
+        }
+        (many, CleanupVerb::Undo) => {
+            msg += &format!(
+                " Skipped {} because branches with those names exist again: {}.",
+                branches(many.len()),
+                many.join(", ")
+            );
+        }
+    }
+    msg
+}
+
+/// The repo card's main branch name ("main" when the repo isn't known yet).
+async fn main_branch_of(engine: &SharedEngine, path: &Path) -> String {
+    let st = engine.state.lock().await;
+    st.repos
+        .iter()
+        .find(|r| r.path == path)
+        .map(|r| r.main_branch.clone())
+        .unwrap_or_else(|| "main".to_string())
+}
+
+/// Asks the server which branches it has, then refreshes the card. The network call runs with
+/// no lock held; the repo lock is only taken for the local refresh.
+#[tauri::command]
+pub async fn refresh_old_branches(
+    app: tauri::AppHandle,
+    path: PathBuf,
+    engine: State<'_, SharedEngine>,
+) -> Result<(), String> {
+    ensure_watched(&engine, &path).await?;
+    let engine = engine.inner();
+    let main = main_branch_of(engine, &path).await;
+    let mut local: BTreeMap<PathBuf, watcher::ServerBranches> = engine
+        .state
+        .lock()
+        .await
+        .cleanup
+        .server
+        .get(&path)
+        .map(|e| BTreeMap::from([(path.clone(), e.clone())]))
+        .unwrap_or_default();
+    let (p, now) = (path.clone(), watcher::now_seconds());
+    let local = blocking(move || {
+        watcher::refresh_server_branches(&p, &main, &mut local, now, true);
+        local
+    })
+    .await?;
+    if let Some(entry) = local.get(&path) {
+        engine
+            .state
+            .lock()
+            .await
+            .cleanup
+            .server
+            .insert(path.clone(), entry.clone());
+    }
+    let _guard = engine.locks.get(&path).lock_owned().await;
+    watcher::refresh_one(&app, engine, &path).await;
+    Ok(())
+}
+
+#[derive(Deserialize)]
+pub struct BranchPick {
+    pub name: String,
+    pub sha: String,
+}
+
+/// Deletes the picked old branches (only those still unchanged) and keeps what is needed to
+/// undo it.
+#[tauri::command]
+pub async fn delete_old_branches(
+    app: tauri::AppHandle,
+    path: PathBuf,
+    branches: Vec<BranchPick>,
+    engine: State<'_, SharedEngine>,
+) -> Result<SimpleResult, String> {
+    ensure_watched(&engine, &path).await?;
+    let engine = engine.inner();
+    let _guard = engine.locks.get(&path).lock_owned().await;
+    let main = main_branch_of(engine, &path).await;
+    let Some(server) = engine
+        .state
+        .lock()
+        .await
+        .cleanup
+        .server
+        .get(&path)
+        .map(|s| s.heads.clone())
+    else {
+        return Ok(SimpleResult::new(
+            "not_possible",
+            "RepoBell hasn't checked the server yet. Refresh the list and try again.",
+        ));
+    };
+    let picks: Vec<(String, String)> = branches.into_iter().map(|b| (b.name, b.sha)).collect();
+    let p = path.clone();
+    let outcome =
+        blocking(move || repobell_core::delete_branches(&p, &main, &picks, &server)).await?;
+    let out = outcome.map_err(|e| git_error_message(&e, &path, "delete branches"))?;
+    let done = out.deleted.len();
+    if done > 0 {
+        let mut st = engine.state.lock().await;
+        st.cleanup.undo.insert(path.clone(), out.deleted);
+        st.generation += 1;
+    }
+    watcher::refresh_one(&app, engine, &path).await;
+    let status = if done > 0 { "deleted" } else { "not_possible" };
+    Ok(SimpleResult::new(
+        status,
+        &cleanup_message(done, &out.skipped, CleanupVerb::Delete),
+    ))
+}
+
+/// Brings back the branches the last cleanup deleted in this repo.
+#[tauri::command]
+pub async fn undo_cleanup(
+    app: tauri::AppHandle,
+    path: PathBuf,
+    engine: State<'_, SharedEngine>,
+) -> Result<SimpleResult, String> {
+    ensure_watched(&engine, &path).await?;
+    let engine = engine.inner();
+    let _guard = engine.locks.get(&path).lock_owned().await;
+    let Some(list) = engine.state.lock().await.cleanup.undo.get(&path).cloned() else {
+        return Ok(SimpleResult::new(
+            "not_possible",
+            "There's nothing to undo.",
+        ));
+    };
+    let p = path.clone();
+    let outcome = blocking(move || repobell_core::restore_branches(&p, &list)).await?;
+    let out = outcome.map_err(|e| git_error_message(&e, &path, "undo"))?;
+    {
+        let mut st = engine.state.lock().await;
+        st.cleanup.undo.remove(&path);
+        st.generation += 1;
+    }
+    watcher::refresh_one(&app, engine, &path).await;
+    let done = out.restored.len();
+    let status = if done > 0 { "undone" } else { "not_possible" };
+    Ok(SimpleResult::new(
+        status,
+        &cleanup_message(done, &out.skipped, CleanupVerb::Undo),
+    ))
+}
+
 /// On a side branch: moves the local main branch up to the team's main. The files, the current
 /// branch and unsaved changes stay as they are.
 #[tauri::command]
@@ -719,5 +897,36 @@ mod tests {
             message: String::new(),
         };
         assert_eq!(unknown.to_plan(), None);
+    }
+    #[test]
+    fn cleanup_messages() {
+        let none: [String; 0] = [];
+        let v = |l: &[&str]| l.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        use CleanupVerb::{Delete, Undo};
+        assert_eq!(
+            cleanup_message(1, &none, Delete),
+            "Deleted 1 branch. You can undo it."
+        );
+        assert_eq!(
+            cleanup_message(3, &none, Delete),
+            "Deleted 3 branches. You can undo it."
+        );
+        assert_eq!(
+            cleanup_message(2, &v(&["feat-x"]), Delete),
+            "Deleted 2 branches. You can undo it. Skipped feat-x because it changed since you looked."
+        );
+        assert_eq!(
+            cleanup_message(1, &v(&["a", "b"]), Delete),
+            "Deleted 1 branch. You can undo it. Skipped 2 branches because they changed since you looked: a, b."
+        );
+        assert_eq!(
+            cleanup_message(0, &v(&["a"]), Delete),
+            "Nothing was deleted. These branches changed since you looked."
+        );
+        assert_eq!(cleanup_message(3, &none, Undo), "Brought back 3 branches.");
+        assert_eq!(
+            cleanup_message(1, &v(&["feat-x"]), Undo),
+            "Brought back 1 branch. Skipped feat-x because a branch with that name exists again."
+        );
     }
 }
