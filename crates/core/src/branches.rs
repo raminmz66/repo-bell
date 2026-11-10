@@ -194,8 +194,9 @@ pub fn delete_branches(
                     merge,
                 });
             }
-            Err(GitError::Failed { .. }) => out.skipped.push(name.clone()),
-            Err(e) => return Err(e),
+            // Any error counts as skipped: returning early would drop the undo data of the
+            // branches already deleted.
+            Err(_) => out.skipped.push(name.clone()),
         }
     }
     Ok(out)
