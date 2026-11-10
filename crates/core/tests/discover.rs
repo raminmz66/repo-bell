@@ -119,11 +119,35 @@ fn every_skip_dirs_entry_is_not_searched() {
 fn dot_git_file_counts_as_repo() {
     let tmp = TempDir::new().unwrap();
     let root = root_of(&tmp);
-    let worktree = root.join("worktree");
-    make_dir(&worktree);
-    fs::write(worktree.join(".git"), "gitdir: /somewhere\n").unwrap();
+    let submodule = root.join("submodule");
+    make_dir(&submodule);
+    fs::write(submodule.join(".git"), "gitdir: /somewhere\n").unwrap();
 
-    assert_eq!(discover(std::slice::from_ref(&root), 2), vec![worktree]);
+    assert_eq!(discover(std::slice::from_ref(&root), 2), vec![submodule]);
+}
+
+#[test]
+fn linked_worktrees_are_skipped() {
+    let tmp = TempDir::new().unwrap();
+    let root = root_of(&tmp);
+    let main = root.join("main");
+    make_dir(&main);
+    common::init_repo(&main);
+    common::commit_file(&main, "a.txt", "a", "first");
+    let wt = root.join("wt/main");
+    common::git(
+        &main,
+        &["worktree", "add", "-b", "side", wt.to_str().unwrap()],
+    );
+    let rel = root.join("rel");
+    common::git(
+        &main,
+        &["worktree", "add", "-b", "side2", rel.to_str().unwrap()],
+    );
+    // Newer Git can write a relative gitdir (worktree.useRelativePaths).
+    fs::write(rel.join(".git"), "gitdir: ../main/.git/worktrees/rel\n").unwrap();
+
+    assert_eq!(discover(std::slice::from_ref(&root), 3), vec![main]);
 }
 
 #[test]

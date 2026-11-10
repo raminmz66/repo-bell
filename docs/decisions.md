@@ -83,6 +83,8 @@ GitHub Actions runs the tests and checks on every push and pull request. Pushing
 
 On first run RepoBell suggests folders before asking. It looks in common places (`~/projects`, `~/code`, `~/work`, `~/Documents`), a few levels deep, skipping folders like `node_modules`, and shows what it found ("Found 5 repos in 2 folders"). The user unticks repos or adds more folders. Then RepoBell checks that the bell can show in the top bar. If it can't, it explains how to turn on the "Ubuntu AppIndicators" extension, and the user can continue without the bell. The last step has a ticked checkbox, "Start RepoBell when I log in", so RepoBell keeps running after a reboot. Start at login moved from v1.1 into v1 for this reason.
 
+RepoBell skips linked worktrees (folders made with `git worktree add`) and watches only the main checkout. Worktrees share its history, and listing each one put several lines with the same name in the tray. News on a worktree's own branch is not shown. Submodules and normal repos still count.
+
 ## Settings
 
 Settings shows one list grouped by folder. Each folder is a header with Remove, and its repos sit under it. Each repo has a notify switch and a small menu with "Stop watching", so one repo can be dropped without removing its folder.
