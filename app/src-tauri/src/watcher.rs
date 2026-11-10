@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use repobell_core::UndoPoint;
+use repobell_core::{DeletedBranch, UndoPoint};
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime::Mutex;
 use tauri::image::Image;
@@ -42,6 +42,15 @@ pub struct FeedSummary {
     pub files_changed: Vec<String>,
 }
 
+/// A local branch the team deleted on the server.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct OldBranchView {
+    pub name: String,
+    pub sha: String,
+    pub merged: bool,
+    pub last_commit_time: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RepoCardView {
     pub path: PathBuf,
@@ -69,6 +78,10 @@ pub struct RepoCardView {
     pub feed: Option<FeedSummary>,
     /// True while an update done from RepoBell can still be undone.
     pub can_undo: bool,
+    /// Local branches the team deleted on the server.
+    pub old_branches: Vec<OldBranchView>,
+    /// True while a branch cleanup done from RepoBell can still be undone.
+    pub can_undo_cleanup: bool,
     /// Teammate changes (newest first), for notifications. Not sent to the window.
     #[serde(skip)]
     pub teammate: Vec<ChangeView>,
@@ -100,6 +113,23 @@ pub struct AppStateView {
     pub folder_errors: Vec<FolderError>,
 }
 
+/// What the server said about a repo's branches, and when.
+#[derive(Debug, Clone)]
+pub struct ServerBranches {
+    pub checked_at: u64,
+    pub heads: BTreeSet<String>,
+}
+
+/// How long a server branch list is trusted before it is asked for again.
+pub const SERVER_BRANCHES_MAX_AGE: u64 = 3600;
+
+#[derive(Default, Clone)]
+pub struct Cleanup {
+    pub server: BTreeMap<PathBuf, ServerBranches>,
+    /// What the last cleanup deleted, per repo, so it can be undone.
+    pub undo: BTreeMap<PathBuf, Vec<DeletedBranch>>,
+}
+
 pub struct EngineState {
     pub settings: Settings,
     pub seen: Seen,
@@ -112,6 +142,7 @@ pub struct EngineState {
     pub offline: bool,
     /// Undo point of the last update RepoBell did, per repo.
     pub undo: BTreeMap<PathBuf, UndoPoint>,
+    pub cleanup: Cleanup,
     /// Bumped whenever something a running check read has changed (settings, seen, an update).
     /// A check that started under an older number is thrown away.
     pub generation: u64,
@@ -186,6 +217,7 @@ impl EngineState {
             last_attempt: None,
             offline: false,
             undo: BTreeMap::new(),
+            cleanup: Cleanup::default(),
             generation: 0,
             failures: 0,
             checking: false,
@@ -318,6 +350,37 @@ pub struct Ctx<'a> {
     pub settings: &'a Settings,
     pub seen: &'a Seen,
     pub undo: &'a BTreeMap<PathBuf, UndoPoint>,
+    pub cleanup: &'a Cleanup,
+}
+
+/// Asks the server which branches it has, when the repo has local branches worth asking about
+/// and the saved answer is missing or old. Network: callers run it without the repo's lock.
+/// A failed ask keeps the old answer.
+pub fn refresh_server_branches(
+    path: &Path,
+    main_branch: &str,
+    cache: &mut BTreeMap<PathBuf, ServerBranches>,
+    now: u64,
+    force: bool,
+) {
+    let fresh = cache
+        .get(path)
+        .is_some_and(|c| now.saturating_sub(c.checked_at) <= SERVER_BRANCHES_MAX_AGE);
+    if fresh && !force {
+        return;
+    }
+    if !repobell_core::has_candidates(path, main_branch).unwrap_or(false) {
+        return;
+    }
+    if let Ok(heads) = repobell_core::server_branches(path) {
+        cache.insert(
+            path.to_path_buf(),
+            ServerBranches {
+                checked_at: now,
+                heads,
+            },
+        );
+    }
 }
 
 /// Asks the server for a repo's main branch. Returns why it failed, if it did. Slow (network),
@@ -365,6 +428,25 @@ pub fn build_view(
         .undo
         .get(&v.path)
         .is_some_and(|p| repobell_core::can_undo(&v.path, p));
+    // ponytail: shown even after a failed fetch, the list is local data plus the saved answer.
+    v.can_undo_cleanup = ctx
+        .cleanup
+        .undo
+        .get(&v.path)
+        .is_some_and(|d| repobell_core::can_restore(&v.path, d));
+    if let Some(server) = ctx.cleanup.server.get(&v.path) {
+        if let Ok(list) = repobell_core::old_branches(&v.path, &v.main_branch, &server.heads) {
+            v.old_branches = list
+                .into_iter()
+                .map(|b| OldBranchView {
+                    name: b.name,
+                    sha: b.sha,
+                    merged: b.merged,
+                    last_commit_time: b.last_commit_time,
+                })
+                .collect();
+        }
+    }
     if v.error.is_some() {
         // Errored repos are not news.
         return v;
@@ -417,9 +499,14 @@ fn fill_feed(v: &mut RepoCardView, f: repobell_core::Feed) {
 /// state to the window and tray. The caller already holds the repo's lock (lock order: repo
 /// lock, then the state lock taken here).
 pub async fn refresh_one(app: &AppHandle, engine: &SharedEngine, path: &Path) {
-    let (settings, seen, undo) = {
+    let (settings, seen, undo, cleanup) = {
         let st = engine.state.lock().await;
-        (st.settings.clone(), st.seen.clone(), st.undo.clone())
+        (
+            st.settings.clone(),
+            st.seen.clone(),
+            st.undo.clone(),
+            st.cleanup.clone(),
+        )
     };
     let p = path.to_path_buf();
     let view = tauri::async_runtime::spawn_blocking(move || {
@@ -429,6 +516,7 @@ pub async fn refresh_one(app: &AppHandle, engine: &SharedEngine, path: &Path) {
                 settings: &settings,
                 seen: &seen,
                 undo: &undo,
+                cleanup: &cleanup,
             },
             None,
         )
@@ -461,25 +549,32 @@ pub fn check_repositories(
     settings: &Settings,
     seen: &Seen,
     undo: &BTreeMap<PathBuf, UndoPoint>,
+    cleanup: &mut Cleanup,
     locks: &RepoLocks,
 ) -> (Vec<RepoCardView>, bool) {
     if settings.folders.is_empty() {
         return (Vec::new(), false);
     }
-    let ctx = Ctx {
-        settings,
-        seen,
-        undo,
-    };
     let mut views = Vec::new();
     for path in repobell_core::discover(&settings.folders, DISCOVER_DEPTH) {
         let fetch_error = if settings.ignored.contains(&path) {
             None
         } else {
-            fetch_repo(&path)
+            let e = fetch_repo(&path);
+            if let Ok(st) = repobell_core::status(&path) {
+                let main = st.main_branch.unwrap_or_else(|| "main".to_string());
+                refresh_server_branches(&path, &main, &mut cleanup.server, now_seconds(), false);
+            }
+            e
         };
         let lock = locks.get(&path);
         let _guard = lock.blocking_lock();
+        let ctx = Ctx {
+            settings,
+            seen,
+            undo,
+            cleanup,
+        };
         views.push(build_view(path, &ctx, fetch_error.as_ref()));
     }
     let offline = is_offline(&views);
@@ -577,7 +672,7 @@ pub async fn run_check(app: &AppHandle, engine: &SharedEngine) {
 }
 
 async fn check_once(app: &AppHandle, engine: &SharedEngine) {
-    let (settings, seen, undo, generation) = {
+    let (settings, seen, undo, cleanup, generation) = {
         let mut st = engine.state.lock().await;
         st.checking = true;
         publish(app, &mut st);
@@ -585,18 +680,21 @@ async fn check_once(app: &AppHandle, engine: &SharedEngine) {
             st.settings.clone(),
             st.seen.clone(),
             st.undo.clone(),
+            st.cleanup.clone(),
             st.generation,
         )
     };
     let eng = engine.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        check_repositories(&settings, &seen, &undo, &eng.locks)
+        let mut cleanup = cleanup;
+        let r = check_repositories(&settings, &seen, &undo, &mut cleanup, &eng.locks);
+        (r, cleanup)
     })
     .await;
 
     let mut st = engine.state.lock().await;
     st.checking = false;
-    let Ok((repos, offline)) = result else {
+    let Ok(((repos, offline), cleanup)) = result else {
         publish(app, &mut st);
         return;
     };
@@ -611,6 +709,12 @@ async fn check_once(app: &AppHandle, engine: &SharedEngine) {
         repos
             .iter()
             .any(|r| &r.path == p && (r.can_undo || r.error.is_some()))
+    });
+    st.cleanup.server = cleanup.server;
+    st.cleanup.undo.retain(|p, _| {
+        repos
+            .iter()
+            .any(|r| &r.path == p && (r.can_undo_cleanup || r.error.is_some()))
     });
     st.repos = repos;
     st.offline = offline;

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use repobell_lib::store::{Seen, Settings};
-use repobell_lib::watcher::{check_repositories, RepoLocks};
+use repobell_lib::watcher::{check_repositories, Cleanup, RepoLocks};
 use tempfile::TempDir;
 
 fn git(dir: &Path, args: &[&str]) -> String {
@@ -79,7 +79,13 @@ fn news_counts_teammate_changes_only_and_undo_point_follows_head() {
     };
     let seen = Seen::new();
     let locks = RepoLocks::default();
-    let (repos, all_failed) = check_repositories(&settings, &seen, &BTreeMap::new(), &locks);
+    let (repos, all_failed) = check_repositories(
+        &settings,
+        &seen,
+        &BTreeMap::new(),
+        &mut Cleanup::default(),
+        &locks,
+    );
     assert!(!all_failed);
     let r = &repos[0];
     assert_eq!(r.error, None);
@@ -93,7 +99,13 @@ fn news_counts_teammate_changes_only_and_undo_point_follows_head() {
     // Seen = the remote tip: nothing is news any more, even though we're still behind.
     let tip = git(&me, &["rev-parse", "origin/main"]);
     let seen: Seen = [(me.clone(), tip)].into_iter().collect();
-    let (repos, _) = check_repositories(&settings, &seen, &BTreeMap::new(), &locks);
+    let (repos, _) = check_repositories(
+        &settings,
+        &seen,
+        &BTreeMap::new(),
+        &mut Cleanup::default(),
+        &locks,
+    );
     assert_eq!(repos[0].new_count, 0);
     assert_eq!(repos[0].behind, 3);
 
@@ -104,17 +116,25 @@ fn news_counts_teammate_changes_only_and_undo_point_follows_head() {
         panic!("expected an update");
     };
     let undo_map: BTreeMap<PathBuf, _> = [(me.clone(), undo)].into_iter().collect();
-    let (repos, _) = check_repositories(&settings, &seen, &undo_map, &locks);
+    let (repos, _) =
+        check_repositories(&settings, &seen, &undo_map, &mut Cleanup::default(), &locks);
     assert!(repos[0].can_undo);
     std::fs::write(me.join("own.txt"), "x").unwrap();
     git(&me, &["add", "."]);
     git(&me, &["commit", "-q", "-m", "own"]);
-    let (repos, _) = check_repositories(&settings, &seen, &undo_map, &locks);
+    let (repos, _) =
+        check_repositories(&settings, &seen, &undo_map, &mut Cleanup::default(), &locks);
     assert!(!repos[0].can_undo, "HEAD moved, so undo is gone");
 
     // A side branch is reported.
     git(&me, &["checkout", "-q", "-b", "side"]);
-    let (repos, _) = check_repositories(&settings, &seen, &BTreeMap::new(), &locks);
+    let (repos, _) = check_repositories(
+        &settings,
+        &seen,
+        &BTreeMap::new(),
+        &mut Cleanup::default(),
+        &locks,
+    );
     assert!(!repos[0].on_main);
     assert_eq!(repos[0].branch.as_deref(), Some("side"));
 }
@@ -141,6 +161,7 @@ fn a_deleted_remote_is_an_error_but_not_offline() {
         &settings,
         &Seen::new(),
         &BTreeMap::new(),
+        &mut Cleanup::default(),
         &RepoLocks::default(),
     );
     assert!(repos[0].error.is_some());
@@ -175,6 +196,7 @@ fn offline_only_when_every_repo_can_not_reach_the_server() {
             &settings,
             &Seen::new(),
             &BTreeMap::new(),
+            &mut Cleanup::default(),
             &RepoLocks::default(),
         )
     };
@@ -186,4 +208,139 @@ fn offline_only_when_every_repo_can_not_reach_the_server() {
     repo_with_origin(&watched, "b", "/nonexistent/remote.git");
     let (_, offline) = check();
     assert!(!offline);
+}
+
+/// A remote, a watched folder and a clone of it with `feat` pushed, merged into main and pushed.
+fn merged_feat() -> (TempDir, PathBuf, PathBuf, Settings) {
+    let tmp = TempDir::new().unwrap();
+    let remote = tmp.path().join("remote.git");
+    git(
+        tmp.path(),
+        &[
+            "init",
+            "-q",
+            "--bare",
+            "-b",
+            "main",
+            remote.to_str().unwrap(),
+        ],
+    );
+    let watched = tmp.path().join("watched");
+    std::fs::create_dir(&watched).unwrap();
+    let me = watched.join("app");
+    clone(&remote, &me, "me@x.test");
+    commit_and_push(&me, "first.txt");
+    git(&me, &["checkout", "-q", "-b", "feat"]);
+    std::fs::write(me.join("f.txt"), "f").unwrap();
+    git(&me, &["add", "."]);
+    git(&me, &["commit", "-q", "-m", "feat"]);
+    git(&me, &["push", "-q", "-u", "origin", "feat"]);
+    git(&me, &["checkout", "-q", "main"]);
+    git(&me, &["merge", "-q", "feat"]);
+    git(&me, &["push", "-q", "origin", "main"]);
+    let settings = Settings {
+        folders: vec![watched],
+        ..Settings::default()
+    };
+    (tmp, remote, me, settings)
+}
+
+fn check(settings: &Settings, cleanup: &mut Cleanup) -> repobell_lib::watcher::RepoCardView {
+    let (mut repos, _) = check_repositories(
+        settings,
+        &Seen::new(),
+        &BTreeMap::new(),
+        cleanup,
+        &RepoLocks::default(),
+    );
+    repos.remove(0)
+}
+
+#[test]
+fn card_lists_branch_deleted_on_server() {
+    let (_tmp, remote, _me, settings) = merged_feat();
+    let before = check(&settings, &mut Cleanup::default());
+    assert!(before.old_branches.is_empty());
+    git(&remote, &["branch", "-D", "feat"]);
+    let after = check(&settings, &mut Cleanup::default());
+    assert_eq!(after.old_branches.len(), 1);
+    assert_eq!(after.old_branches[0].name, "feat");
+    assert!(after.old_branches[0].merged);
+    assert_eq!(after.new_count, before.new_count);
+    assert_eq!(after.error, before.error);
+}
+
+#[test]
+fn server_answer_is_cached_for_an_hour() {
+    let (_tmp, remote, me, settings) = merged_feat();
+    git(&me, &["branch", "feat2", "feat"]);
+    git(&me, &["push", "-q", "-u", "origin", "feat2"]);
+    git(&remote, &["branch", "-D", "feat"]);
+    let mut cleanup = Cleanup::default();
+    assert_eq!(check(&settings, &mut cleanup).old_branches.len(), 1);
+    git(&remote, &["branch", "-D", "feat2"]);
+    assert_eq!(check(&settings, &mut cleanup).old_branches.len(), 1);
+    for e in cleanup.server.values_mut() {
+        e.checked_at -= 3601;
+    }
+    assert_eq!(check(&settings, &mut cleanup).old_branches.len(), 2);
+}
+
+#[test]
+fn no_line_when_server_never_answered() {
+    let (_tmp, _remote, me, settings) = merged_feat();
+    git(
+        &me,
+        &["remote", "set-url", "origin", "/nonexistent/remote.git"],
+    );
+    let mut cleanup = Cleanup::default();
+    let card = check(&settings, &mut cleanup);
+    assert!(card.old_branches.is_empty());
+    assert!(cleanup.server.is_empty());
+}
+
+#[test]
+fn old_list_kept_when_server_fails_later() {
+    let (_tmp, remote, me, settings) = merged_feat();
+    git(&remote, &["branch", "-D", "feat"]);
+    let mut cleanup = Cleanup::default();
+    assert_eq!(check(&settings, &mut cleanup).old_branches.len(), 1);
+    for e in cleanup.server.values_mut() {
+        e.checked_at -= 3601;
+    }
+    git(
+        &me,
+        &["remote", "set-url", "origin", "/nonexistent/remote.git"],
+    );
+    assert_eq!(check(&settings, &mut cleanup).old_branches.len(), 1);
+}
+
+#[test]
+fn no_server_call_without_candidates() {
+    let tmp = TempDir::new().unwrap();
+    let remote = tmp.path().join("remote.git");
+    git(
+        tmp.path(),
+        &[
+            "init",
+            "-q",
+            "--bare",
+            "-b",
+            "main",
+            remote.to_str().unwrap(),
+        ],
+    );
+    let watched = tmp.path().join("watched");
+    std::fs::create_dir(&watched).unwrap();
+    let me = watched.join("app");
+    clone(&remote, &me, "me@x.test");
+    commit_and_push(&me, "first.txt");
+    git(&me, &["branch", "local-only"]);
+    let settings = Settings {
+        folders: vec![watched],
+        ..Settings::default()
+    };
+    let mut cleanup = Cleanup::default();
+    check(&settings, &mut cleanup);
+    assert!(cleanup.server.is_empty());
 }
