@@ -3,7 +3,7 @@ import { render, fireEvent, screen, waitFor } from "@testing-library/svelte";
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
 import RepoCard from "../RepoCard.svelte";
 import { makeRepo, makeFeed } from "../../test-helpers";
-import type { PlanView, UpdateResult } from "../types";
+import type { PlanView, UpdateResult, OldBranch } from "../types";
 
 const PATH = "/home/user/projects/my-repo";
 
@@ -339,6 +339,107 @@ describe("RepoCard", () => {
       render(RepoCard, { repo: newsRepo({ can_undo: true }) });
       await fireEvent.click(screen.getByRole("button", { name: "Undo" }));
       expect(await screen.findByText(/Undo isn't possible/)).toBeInTheDocument();
+    });
+  });
+
+  describe("old branches", () => {
+    const t = Math.floor(Date.now() / 1000) - 3 * 86400;
+    const merged: OldBranch = { name: "feature/login", sha: "aaa111", merged: true, last_commit_time: t };
+    const squashed: OldBranch = { name: "fix-typo", sha: "bbb222", merged: false, last_commit_time: t };
+    const cleanupRepo = (o = {}) => makeRepo({ old_branches: [merged, squashed], ...o });
+
+    it('shows "2 old branches" line and no news badge', () => {
+      render(RepoCard, { repo: cleanupRepo() });
+      const line = screen.getByRole("button", { name: "2 old branches" });
+      expect(line).toHaveAttribute("title", "Your team deleted these branches on the server. You can delete your copies.");
+      expect(screen.queryByText(/\bnew\b/)).not.toBeInTheDocument();
+    });
+
+    it("says 1 old branch for one", () => {
+      render(RepoCard, { repo: makeRepo({ old_branches: [merged] }) });
+      expect(screen.getByRole("button", { name: "1 old branch" })).toBeInTheDocument();
+    });
+
+    it("hides the line when the card has an error", () => {
+      render(RepoCard, { repo: cleanupRepo({ error: "Can't reach the server", error_kind: "offline" }) });
+      expect(screen.queryByText(/old branch/)).not.toBeInTheDocument();
+    });
+
+    it("opening the list asks for a fresh server answer", async () => {
+      let args: any = null;
+      mockIPC((cmd, a) => { if (cmd === "refresh_old_branches") args = a; });
+      render(RepoCard, { repo: cleanupRepo() });
+      await fireEvent.click(screen.getByRole("button", { name: "2 old branches" }));
+      await waitFor(() => expect(args).toEqual({ path: PATH }));
+    });
+
+    it("merged rows start ticked and may-not-be-merged rows start unticked", async () => {
+      mockIPC(() => {});
+      render(RepoCard, { repo: cleanupRepo() });
+      await fireEvent.click(screen.getByRole("button", { name: "2 old branches" }));
+      expect(screen.getByText("Merged into main")).toBeInTheDocument();
+      expect(screen.getByText("May not be merged")).toBeInTheDocument();
+      expect(screen.getByText(/Tick only the ones you're done with/)).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: "feature/login" })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: "fix-typo" })).not.toBeChecked();
+      expect(screen.getAllByText("last change 3 d ago")).toHaveLength(2);
+    });
+
+    it("shows a group only when it has rows", async () => {
+      mockIPC(() => {});
+      render(RepoCard, { repo: makeRepo({ old_branches: [merged] }) });
+      await fireEvent.click(screen.getByRole("button", { name: "1 old branch" }));
+      expect(screen.queryByText("May not be merged")).not.toBeInTheDocument();
+    });
+
+    it("delete sends only the ticked branches with their sha", async () => {
+      let args: any = null;
+      mockIPC((cmd, a) => {
+        if (cmd === "delete_old_branches") { args = a; return { status: "deleted", message: "Deleted 2 branches. You can undo it.", detail: null }; }
+      });
+      const onStateRefresh = vi.fn();
+      render(RepoCard, { repo: cleanupRepo(), onStateRefresh });
+      await fireEvent.click(screen.getByRole("button", { name: "2 old branches" }));
+      await fireEvent.click(screen.getByRole("checkbox", { name: "fix-typo" }));
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 2 branches" }));
+      await waitFor(() => expect(onStateRefresh).toHaveBeenCalled());
+      expect(args).toEqual({
+        path: PATH,
+        branches: [{ name: "feature/login", sha: "aaa111" }, { name: "fix-typo", sha: "bbb222" }],
+      });
+    });
+
+    it("delete button is disabled when nothing is ticked", async () => {
+      mockIPC(() => {});
+      render(RepoCard, { repo: makeRepo({ old_branches: [squashed] }) });
+      await fireEvent.click(screen.getByRole("button", { name: "1 old branch" }));
+      expect(screen.getByRole("button", { name: "Delete branches" })).toBeDisabled();
+    });
+
+    it("undo banner shows when can_undo_cleanup and calls undo_cleanup", async () => {
+      let args: any = null;
+      mockIPC((cmd, a) => {
+        if (cmd === "undo_cleanup") { args = a; return { status: "undone", message: "Brought back 2 branches.", detail: null }; }
+      });
+      const onStateRefresh = vi.fn();
+      render(RepoCard, { repo: makeRepo({ can_undo_cleanup: true }), onStateRefresh });
+      expect(screen.getByText("RepoBell deleted branches here. You can undo it.")).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(onStateRefresh).toHaveBeenCalled());
+      expect(args).toEqual({ path: PATH });
+    });
+
+    it("slash names render and are sent unchanged", async () => {
+      let args: any = null;
+      mockIPC((cmd, a) => {
+        if (cmd === "delete_old_branches") { args = a; return { status: "deleted", message: "Deleted 1 branch. You can undo it.", detail: null }; }
+      });
+      render(RepoCard, { repo: makeRepo({ old_branches: [merged] }) });
+      await fireEvent.click(screen.getByRole("button", { name: "1 old branch" }));
+      expect(screen.getByText("feature/login")).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      await waitFor(() => expect(args).not.toBeNull());
+      expect(args.branches).toEqual([{ name: "feature/login", sha: "aaa111" }]);
     });
   });
 

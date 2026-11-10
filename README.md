@@ -13,6 +13,7 @@ RepoBell sits quietly in your Ubuntu top bar, watches your Git repos, and tells 
 - **Smart desktop notifications:** Sends one summary notification per check cycle when teammates push changes, never notifying for your own commits.
 - **Safe 1-click updates:** Updates cleanly with fast-forward or stash-and-pop, aborting safely if conflicts would arise.
 - **Instant Undo:** Reverts updates cleanly with reflog protection if you need to roll back.
+- **Old branch cleanup:** Offers to delete local branches your team already deleted on the server, with Undo. It works best when GitHub's "Automatically delete head branches" setting is on.
 - **Editor integration:** Auto-detects installed editors (VS Code, JetBrains, Sublime, Text Editor) and opens conflicting files.
 - **First-run wizard:** Discovers your Git projects automatically and tests top bar indicator visibility.
 

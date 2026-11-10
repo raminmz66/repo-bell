@@ -452,7 +452,7 @@ fn cleanup_message(done: usize, skipped: &[String], verb: CleanupVerb) -> String
     let branches = |n: usize| format!("{n} branch{}", if n == 1 { "" } else { "es" });
     let mut msg = match verb {
         CleanupVerb::Delete if done == 0 => {
-            return "Nothing was deleted. These branches changed since you looked.".into();
+            return "Nothing was deleted. These branches changed or are already gone.".into();
         }
         CleanupVerb::Delete => format!("Deleted {}. You can undo it.", branches(done)),
         CleanupVerb::Undo if done == 0 => "Nothing was brought back.".to_string(),
@@ -461,14 +461,14 @@ fn cleanup_message(done: usize, skipped: &[String], verb: CleanupVerb) -> String
     match (skipped, verb) {
         ([], _) => {}
         ([one], CleanupVerb::Delete) => {
-            msg += &format!(" Skipped {one} because it changed since you looked.");
+            msg += &format!(" Skipped {one} because it changed or is already gone.");
         }
         ([one], CleanupVerb::Undo) => {
             msg += &format!(" Skipped {one} because a branch with that name exists again.");
         }
         (many, CleanupVerb::Delete) => {
             msg += &format!(
-                " Skipped {} because they changed since you looked: {}.",
+                " Skipped {} because they changed or are already gone: {}.",
                 branches(many.len()),
                 many.join(", ")
             );
@@ -913,15 +913,15 @@ mod tests {
         );
         assert_eq!(
             cleanup_message(2, &v(&["feat-x"]), Delete),
-            "Deleted 2 branches. You can undo it. Skipped feat-x because it changed since you looked."
+            "Deleted 2 branches. You can undo it. Skipped feat-x because it changed or is already gone."
         );
         assert_eq!(
             cleanup_message(1, &v(&["a", "b"]), Delete),
-            "Deleted 1 branch. You can undo it. Skipped 2 branches because they changed since you looked: a, b."
+            "Deleted 1 branch. You can undo it. Skipped 2 branches because they changed or are already gone: a, b."
         );
         assert_eq!(
             cleanup_message(0, &v(&["a"]), Delete),
-            "Nothing was deleted. These branches changed since you looked."
+            "Nothing was deleted. These branches changed or are already gone."
         );
         assert_eq!(cleanup_message(3, &none, Undo), "Brought back 3 branches.");
         assert_eq!(

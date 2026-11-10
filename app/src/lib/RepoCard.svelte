@@ -3,7 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import FeedList from "./FeedList.svelte";
   import type { RepoCardView, PlanView, UpdateResult, SimpleResult } from "./types";
-  import { errText, sentence, plural } from "./util";
+  import { errText, sentence, plural, timeAgo } from "./util";
 
   export let repo: RepoCardView;
   /** Current time in ms, so "5 min ago" stays fresh. */
@@ -24,7 +24,7 @@
   let prevNew = repo.new_count;
 
   let plan: PlanView | null = null;
-  let busy: "" | "preview" | "update" | "main" | "undo" | "remove" = "";
+  let busy: "" | "preview" | "update" | "main" | "undo" | "remove" | "cleanup" | "cleanup-undo" = "";
   let notice: Notice | null = null;
   let conflictFiles: string[] = [];
   let conflictMessage = "";
@@ -35,6 +35,10 @@
   let showDetail = false;
   let fileError: string | null = null;
   let actionError: string | null = null;
+  let showBranches = false;
+  // Ticks the user changed. A row not listed here follows its default: ticked when merged.
+  let choice: Record<string, boolean> = {};
+  let noticeFrom: "update" | "cleanup" = "update";
 
   $: bodyId = `body-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   $: hasNews = !repo.error && repo.new_count > 0;
@@ -46,6 +50,10 @@
   $: canUpdateMain = onSide && repo.main_behind > 0;
   $: plainUpToDate = repo.on_main && repo.behind === 0 && repo.ahead === 0;
   $: sideLabel = repo.branch ? `You're on ${repo.branch}` : "You're not on a branch";
+  $: showOld = !repo.error && repo.old_branches.length > 0;
+  $: mergedRows = repo.old_branches.filter((b) => b.merged);
+  $: unmergedRows = repo.old_branches.filter((b) => !b.merged);
+  $: pickedRows = repo.old_branches.filter((b) => choice[b.name] ?? b.merged);
   $: trackNews(repo.new_count);
   $: if (highlight && rootEl) reveal();
 
@@ -84,6 +92,7 @@
   }
 
   function clearMessages() {
+    noticeFrom = "update";
     notice = null;
     conflictFiles = [];
     stashAlert = null;
@@ -146,7 +155,52 @@
     }
   }
 
+  async function toggleBranches() {
+    showBranches = !showBranches;
+    if (!showBranches) return;
+    try {
+      await invoke("refresh_old_branches", { path: repo.path });
+    } catch {
+      // The list stays as it was; Delete still checks every branch before it deletes.
+    }
+  }
+
+  async function handleDeleteBranches() {
+    const branches = pickedRows.map(({ name, sha }) => ({ name, sha }));
+    if (branches.length === 0) return;
+    clearMessages();
+    noticeFrom = "cleanup";
+    busy = "cleanup";
+    try {
+      const r = await invoke<SimpleResult>("delete_old_branches", { path: repo.path, branches });
+      notice = { kind: r.status === "deleted" ? "success" : "warn", text: r.message };
+      choice = {};
+      showBranches = false;
+      onStateRefresh();
+    } catch (e) {
+      notice = { kind: "error", text: errText(e) };
+    } finally {
+      busy = "";
+    }
+  }
+
+  async function handleUndoCleanup() {
+    noticeFrom = "cleanup";
+    busy = "cleanup-undo";
+    notice = null;
+    try {
+      const r = await invoke<SimpleResult>("undo_cleanup", { path: repo.path });
+      notice = { kind: r.status === "undone" ? "success" : "warn", text: r.message };
+      onStateRefresh();
+    } catch (e) {
+      notice = { kind: "error", text: errText(e) };
+    } finally {
+      busy = "";
+    }
+  }
+
   async function handleUndo() {
+    noticeFrom = "update";
     busy = "undo";
     notice = null;
     try {
@@ -288,6 +342,48 @@
     <p class="hint">Refreshes the main version in the background. Your files stay as they are.</p>
   {/if}
 
+  {#if showOld}
+    <div class="old-branches">
+      <button
+        class="old-line status-quiet"
+        aria-expanded={showBranches}
+        title="Your team deleted these branches on the server. You can delete your copies."
+        onclick={toggleBranches}
+      >
+        {repo.old_branches.length} old {plural(repo.old_branches.length, "branch", "branches")}
+      </button>
+      {#if showBranches}
+        {#snippet group(title: string, hint: string | null, rows: typeof repo.old_branches)}
+          {#if rows.length > 0}
+            <div class="old-group" role="group" aria-label={title}>
+              <p class="old-title">{title}</p>
+              {#if hint}<p class="hint old-hint">{hint}</p>{/if}
+              {#each rows as b (b.name)}
+                <label class="old-row">
+                  <input
+                    type="checkbox"
+                    aria-label={b.name}
+                    checked={choice[b.name] ?? b.merged}
+                    onchange={(e) => (choice = { ...choice, [b.name]: e.currentTarget.checked })}
+                  />
+                  <span class="old-name">{b.name}</span>
+                  <span class="old-time">last change {timeAgo(b.last_commit_time)}</span>
+                </label>
+              {/each}
+            </div>
+          {/if}
+        {/snippet}
+        {@render group("Merged into main", null, mergedRows)}
+        {@render group("May not be merged", "The server no longer has these, but Git can't find them in main. Tick only the ones you're done with.", unmergedRows)}
+        <div class="old-actions">
+          <button class="btn-secondary" disabled={pickedRows.length === 0 || busy !== ""} onclick={handleDeleteBranches}>
+            {busy === "cleanup" ? "Deleting…" : pickedRows.length === 0 ? "Delete branches" : `Delete ${pickedRows.length} ${plural(pickedRows.length, "branch", "branches")}`}
+          </button>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   <!-- Update preview and confirm -->
   {#if plan}
     {@const runnable = plan.kind === "fast_forward" || plan.kind === "combine"}
@@ -374,12 +470,23 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M5 12l5 5 9-10"></path>
       </svg>
-      <p class="undo-text">{notice?.kind === "success" ? notice.text : "RepoBell updated this repo. You can undo it."}</p>
+      <p class="undo-text">{notice?.kind === "success" && noticeFrom === "update" ? notice.text : "RepoBell updated this repo. You can undo it."}</p>
       <button class="btn-undo" disabled={busy !== ""} onclick={handleUndo}>{busy === "undo" ? "Undoing…" : "Undo"}</button>
     </div>
   {/if}
 
-  {#if notice && !(repo.can_undo && notice.kind === "success")}
+  <!-- Undo for branch cleanup -->
+  {#if repo.can_undo_cleanup}
+    <div class="undo-banner" role="status">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12l5 5 9-10"></path>
+      </svg>
+      <p class="undo-text">{notice?.kind === "success" && noticeFrom === "cleanup" ? notice.text : "RepoBell deleted branches here. You can undo it."}</p>
+      <button class="btn-undo" disabled={busy !== ""} onclick={handleUndoCleanup}>{busy === "cleanup-undo" ? "Undoing…" : "Undo"}</button>
+    </div>
+  {/if}
+
+  {#if notice && !(notice.kind === "success" && ((repo.can_undo && noticeFrom === "update") || (repo.can_undo_cleanup && noticeFrom === "cleanup")))}
     <div class={`notice notice-${notice.kind}`} role={notice.kind === "error" || notice.kind === "warn" ? "alert" : "status"}>
       <p>{notice.text}</p>
       {#if mainDetail}
@@ -577,6 +684,56 @@
     font-size: 13px;
     line-height: 1.4;
     color: #5b5b66;
+  }
+  .old-branches {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .old-line {
+    align-self: flex-start;
+    min-height: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .old-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .old-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #3d3d45;
+  }
+  .old-hint {
+    margin: 0;
+  }
+  .old-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    font-size: 14px;
+  }
+  .old-name {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .old-time {
+    font-size: 13px;
+    color: #5b5b66;
+    white-space: nowrap;
+  }
+  .old-actions {
+    display: flex;
+    justify-content: flex-end;
   }
   .card-body {
     display: flex;

@@ -19,6 +19,8 @@ export function makeRepo(overrides: Partial<RepoCardView> = {}): RepoCardView {
     new_count: 0,
     feed: null,
     can_undo: false,
+    old_branches: [],
+    can_undo_cleanup: false,
     ...overrides,
   };
 }

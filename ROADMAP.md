@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Branch cleanup design approved (docs/superpowers/specs/2026-11-10-branch-cleanup-design.md). Next: write its build plan. Tagging v0.1.0 is still open.
+Current step: Branch cleanup is built and reviewed (docs/superpowers/specs/2026-11-10-branch-cleanup-design.md). Next: a hand test after install. Tagging v0.1.0 is still open.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -64,8 +64,8 @@ Each screen gets a senior UI/UX review before it is marked done.
 ## Phase 5: branch cleanup
 
 - [x] Design approved (2026-11-10)
-- [ ] Build plan
-- [ ] Build, test and review
+- [x] Build plan
+- [x] Build, test and review
 
 ## Later
 

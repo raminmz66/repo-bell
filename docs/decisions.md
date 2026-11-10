@@ -109,6 +109,32 @@ Clicking a repo line opens the main window on that repo. A number badge is likel
 
 A tray test on Ubuntu 22.04 (GNOME on X11, Tauri 2.12.5) confirmed this plan on 2026-11-06. The icon shows and switches between three states. A left click opens the menu. Menu text updates live, even while the menu is open. "Open RepoBell" opens the window. No tray icon events reached the app, as expected. Build notes from that test: use `TrayIconBuilder` with `show_menu_on_left_click(true)`, change icons with `tray.set_icon`, change text with `MenuItem::set_text`, and make every icon PNG 32-bit RGBA, because `generate_context!` rejects other PNGs.
 
+## Branch cleanup
+
+Decided 2026-11-10. Full design: `docs/superpowers/specs/2026-11-10-branch-cleanup-design.md`.
+
+RepoBell offers to delete local branches that the team deleted on the server. It shows a quiet "4 old branches" line on the repo card. It is hidden when the card has an error, and it never counts as news.
+
+Listing rules:
+
+- A branch is listed only when it was pushed once (its upstream is a branch on `origin`) and that upstream is gone from the server. `develop` and `staging` stay on the server, so they are never listed.
+- Never listed: the checked-out branch, the local main branch, branches open in a linked worktree, branches with no upstream, and branches whose upstream is `origin/<main>`. A branch just made from `origin/main` has that upstream and may be work just started.
+- Merged means the branch tip is in `origin/<main>`. These start ticked.
+- May not be merged means Git can't find the tip in main. A squash merge looks like this, and so does an abandoned pull request. These start unticked, and each row shows how long ago its last commit was.
+
+Server check:
+
+- RepoBell runs `git ls-remote --heads origin` only for repos that have a candidate branch. It runs at most once an hour per repo, and again when the user opens the list. It reuses the last answer in between.
+- A failed check keeps the last good answer and never shows "Can't check".
+
+Deleting:
+
+- Local only. RepoBell never deletes or pushes anything on the server.
+- A branch is deleted only if it still points at the commit the user saw. Otherwise it is skipped and the result says so.
+- There is no confirm prompt. The user already chose by ticking, and Undo covers mistakes.
+- Undo recreates each branch at its old commit with its upstream setting. It lasts as long as Update's Undo. A branch whose name exists again is skipped.
+- Teams that never delete server branches see nothing. GitHub's "Automatically delete head branches" setting makes the feature work best.
+
 ## Design reviews
 
 Mockups are HTML files in `docs/mockups/`. Each one is also published as a private claude.ai artifact so it can be opened on a phone.

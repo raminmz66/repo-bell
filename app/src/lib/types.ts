@@ -46,6 +46,13 @@ export type ErrorKind =
   | "not_a_repo"
   | "other";
 
+export interface OldBranch {
+  name: string;
+  sha: string;
+  merged: boolean;
+  last_commit_time: number; // Unix seconds
+}
+
 export interface RepoCardView {
   path: string;
   name: string;
@@ -65,6 +72,8 @@ export interface RepoCardView {
   new_count: number;
   feed: FeedSummary | null;
   can_undo: boolean;
+  old_branches: OldBranch[];
+  can_undo_cleanup: boolean;
 }
 
 export interface FolderError {
