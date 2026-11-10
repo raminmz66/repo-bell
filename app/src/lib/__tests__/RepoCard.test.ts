@@ -332,6 +332,7 @@ describe("RepoCard", () => {
       expect(args).toEqual({ path: PATH });
     });
 
+
     it("explains when undo is no longer possible", async () => {
       mockIPC((cmd) => {
         if (cmd === "undo_repo") return { status: "not_possible", message: "Undo isn't possible because the repo changed since the update. Nothing was changed.", detail: null };
@@ -424,9 +425,41 @@ describe("RepoCard", () => {
       const onStateRefresh = vi.fn();
       render(RepoCard, { repo: makeRepo({ can_undo_cleanup: true }), onStateRefresh });
       expect(screen.getByText("RepoBell deleted branches here. You can undo it.")).toBeInTheDocument();
-      await fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await fireEvent.click(screen.getByRole("button", { name: "Undo branch delete" }));
       await waitFor(() => expect(onStateRefresh).toHaveBeenCalled());
       expect(args).toEqual({ path: PATH });
+    });
+
+    it("a ticked branch that moved is unticked and not sent", async () => {
+      let args: any = null;
+      mockIPC((cmd, a) => { if (cmd === "delete_old_branches") args = a; return { status: "deleted", message: "ok", detail: null }; });
+      const { rerender } = render(RepoCard, { repo: cleanupRepo() });
+      const line = screen.getByRole("button", { name: "2 old branches" });
+      await fireEvent.click(line);
+      expect(line).toHaveAttribute("aria-controls");
+      await fireEvent.click(screen.getByRole("checkbox", { name: "fix-typo" }));
+      expect(screen.getByRole("checkbox", { name: "fix-typo" })).toBeChecked();
+      await rerender({ repo: cleanupRepo({ old_branches: [merged, { ...squashed, sha: "ccc333" }] }) });
+      expect(screen.getByRole("checkbox", { name: "fix-typo" })).not.toBeChecked();
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      await waitFor(() => expect(args).not.toBeNull());
+      expect(args.branches).toEqual([{ name: "feature/login", sha: "aaa111" }]);
+    });
+
+    it("a ticked branch that moved is unticked and not sent", async () => {
+      let args: any = null;
+      mockIPC((cmd, a) => { if (cmd === "delete_old_branches") args = a; return { status: "deleted", message: "ok", detail: null }; });
+      const { rerender } = render(RepoCard, { repo: cleanupRepo() });
+      const line = screen.getByRole("button", { name: "2 old branches" });
+      await fireEvent.click(line);
+      expect(line).toHaveAttribute("aria-controls");
+      await fireEvent.click(screen.getByRole("checkbox", { name: "fix-typo" }));
+      expect(screen.getByRole("checkbox", { name: "fix-typo" })).toBeChecked();
+      await rerender({ repo: cleanupRepo({ old_branches: [merged, { ...squashed, sha: "ccc333" }] }) });
+      expect(screen.getByRole("checkbox", { name: "fix-typo" })).not.toBeChecked();
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      await waitFor(() => expect(args).not.toBeNull());
+      expect(args.branches).toEqual([{ name: "feature/login", sha: "aaa111" }]);
     });
 
     it("slash names render and are sent unchanged", async () => {

@@ -37,9 +37,12 @@
   let actionError: string | null = null;
   let showBranches = false;
   // Ticks the user changed. A row not listed here follows its default: ticked when merged.
+  // Ticks are keyed by name and tip, so a branch that moved after ticking is unticked.
   let choice: Record<string, boolean> = {};
+  const tickKey = (b: { name: string; sha: string }) => `${b.name}@${b.sha}`;
   let noticeFrom: "update" | "cleanup" = "update";
 
+  $: listId = `old-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   $: bodyId = `body-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   $: hasNews = !repo.error && repo.new_count > 0;
   $: compact = !repo.error && repo.new_count === 0;
@@ -53,7 +56,7 @@
   $: showOld = !repo.error && repo.old_branches.length > 0;
   $: mergedRows = repo.old_branches.filter((b) => b.merged);
   $: unmergedRows = repo.old_branches.filter((b) => !b.merged);
-  $: pickedRows = repo.old_branches.filter((b) => choice[b.name] ?? b.merged);
+  $: pickedRows = repo.old_branches.filter((b) => choice[tickKey(b)] ?? b.merged);
   $: trackNews(repo.new_count);
   $: if (highlight && rootEl) reveal();
 
@@ -347,12 +350,14 @@
       <button
         class="old-line status-quiet"
         aria-expanded={showBranches}
+        aria-controls={listId}
         title="Your team deleted these branches on the server. You can delete your copies."
         onclick={toggleBranches}
       >
         {repo.old_branches.length} old {plural(repo.old_branches.length, "branch", "branches")}
       </button>
       {#if showBranches}
+        <div id={listId}>
         {#snippet group(title: string, hint: string | null, rows: typeof repo.old_branches)}
           {#if rows.length > 0}
             <div class="old-group" role="group" aria-label={title}>
@@ -363,8 +368,8 @@
                   <input
                     type="checkbox"
                     aria-label={b.name}
-                    checked={choice[b.name] ?? b.merged}
-                    onchange={(e) => (choice = { ...choice, [b.name]: e.currentTarget.checked })}
+                    checked={choice[tickKey(b)] ?? b.merged}
+                    onchange={(e) => (choice = { ...choice, [tickKey(b)]: e.currentTarget.checked })}
                   />
                   <span class="old-name">{b.name}</span>
                   <span class="old-time">last change {timeAgo(b.last_commit_time)}</span>
@@ -379,6 +384,7 @@
           <button class="btn-secondary" disabled={pickedRows.length === 0 || busy !== ""} onclick={handleDeleteBranches}>
             {busy === "cleanup" ? "Deleting…" : pickedRows.length === 0 ? "Delete branches" : `Delete ${pickedRows.length} ${plural(pickedRows.length, "branch", "branches")}`}
           </button>
+        </div>
         </div>
       {/if}
     </div>
@@ -482,7 +488,7 @@
         <path d="M5 12l5 5 9-10"></path>
       </svg>
       <p class="undo-text">{notice?.kind === "success" && noticeFrom === "cleanup" ? notice.text : "RepoBell deleted branches here. You can undo it."}</p>
-      <button class="btn-undo" disabled={busy !== ""} onclick={handleUndoCleanup}>{busy === "cleanup-undo" ? "Undoing…" : "Undo"}</button>
+      <button class="btn-undo" aria-label="Undo branch delete" disabled={busy !== ""} onclick={handleUndoCleanup}>{busy === "cleanup-undo" ? "Undoing…" : "Undo"}</button>
     </div>
   {/if}
 
