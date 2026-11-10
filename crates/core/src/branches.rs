@@ -128,3 +128,121 @@ fn candidates(repo: &Path, main_branch: &str) -> Result<Vec<Candidate>, GitError
         })
         .collect())
 }
+
+/// A branch removed by `delete_branches`, with what `restore_branches` needs to bring it back.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeletedBranch {
+    pub name: String,
+    pub sha: String,
+    /// The old `branch.<name>.remote` value (empty when unset).
+    pub remote: String,
+    /// The old `branch.<name>.merge` value (empty when unset).
+    pub merge: String,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct DeleteOutcome {
+    pub deleted: Vec<DeletedBranch>,
+    /// Picks that were not deleted: not listed any more, moved, or already gone.
+    pub skipped: Vec<String>,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct RestoreOutcome {
+    pub restored: Vec<String>,
+    /// Names that could not be restored because the name is taken again.
+    pub skipped: Vec<String>,
+}
+
+/// Reads a config value; a missing key is an empty string.
+fn config_get(repo: &Path, key: &str) -> String {
+    git::run(repo, &["config", "--get", key])
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
+}
+
+/// Deletes the picked `(name, sha)` branches, but only those still listed by `old_branches` with
+/// that same tip. Each delete checks the tip again, so a branch that moved is never lost.
+pub fn delete_branches(
+    repo: &Path,
+    main_branch: &str,
+    picks: &[(String, String)],
+    server: &BTreeSet<String>,
+) -> Result<DeleteOutcome, GitError> {
+    let listed = old_branches(repo, main_branch, server)?;
+    let mut out = DeleteOutcome::default();
+    for (name, sha) in picks {
+        if !listed.iter().any(|b| &b.name == name && &b.sha == sha) {
+            out.skipped.push(name.clone());
+            continue;
+        }
+        let remote = config_get(repo, &format!("branch.{name}.remote"));
+        let merge = config_get(repo, &format!("branch.{name}.merge"));
+        match git::run(
+            repo,
+            &["update-ref", "-d", &format!("refs/heads/{name}"), sha],
+        ) {
+            Ok(_) => {
+                let _ = git::run(
+                    repo,
+                    &["config", "--remove-section", &format!("branch.{name}")],
+                );
+                out.deleted.push(DeletedBranch {
+                    name: name.clone(),
+                    sha: sha.clone(),
+                    remote,
+                    merge,
+                });
+            }
+            Err(GitError::Failed { .. }) => out.skipped.push(name.clone()),
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(out)
+}
+
+/// Brings deleted branches back at their old tip with their old upstream. A name that is taken
+/// again is skipped and left alone.
+pub fn restore_branches(
+    repo: &Path,
+    deleted: &[DeletedBranch],
+) -> Result<RestoreOutcome, GitError> {
+    let mut out = RestoreOutcome::default();
+    for d in deleted {
+        // The empty old value makes update-ref create the ref only, never overwrite one.
+        match git::run(
+            repo,
+            &["update-ref", &format!("refs/heads/{}", d.name), &d.sha, ""],
+        ) {
+            Ok(_) => {}
+            Err(GitError::Failed { .. }) => {
+                out.skipped.push(d.name.clone());
+                continue;
+            }
+            Err(e) => return Err(e),
+        }
+        for (key, val) in [("remote", &d.remote), ("merge", &d.merge)] {
+            if !val.is_empty() {
+                git::run(repo, &["config", &format!("branch.{}.{key}", d.name), val])?;
+            }
+        }
+        out.restored.push(d.name.clone());
+    }
+    Ok(out)
+}
+
+/// True when at least one deleted name is free again.
+pub fn can_restore(repo: &Path, deleted: &[DeletedBranch]) -> bool {
+    deleted.iter().any(|d| {
+        git::run(
+            repo,
+            &[
+                "rev-parse",
+                "--verify",
+                "-q",
+                &format!("refs/heads/{}", d.name),
+            ],
+        )
+        .is_err()
+    })
+}

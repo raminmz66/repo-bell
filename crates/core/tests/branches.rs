@@ -1,10 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use repobell_core::{has_candidates, old_branches, server_branches};
+use repobell_core::{
+    can_restore, delete_branches, has_candidates, old_branches, restore_branches, server_branches,
+};
 use tempfile::TempDir;
 
 mod common;
-use common::{commit_file, git, init_repo, setup_remote_and_clone};
+use common::{commit_file, git, git_expect_fail, init_repo, setup_remote_and_clone};
 
 fn setup() -> (TempDir, PathBuf, PathBuf) {
     let tmp = TempDir::new().unwrap();
@@ -161,4 +163,125 @@ fn last_commit_time_is_the_tip_commit_time() {
     let server = server_branches(&work).unwrap();
     let got = old_branches(&work, "main", &server).unwrap();
     assert_eq!(got[0].last_commit_time, want);
+}
+
+fn sha_of(work: &Path, name: &str) -> String {
+    git(work, &["rev-parse", name]).trim().to_string()
+}
+
+fn pick(work: &Path, name: &str) -> (String, String) {
+    (name.to_string(), sha_of(work, name))
+}
+
+fn delete(work: &Path, picks: &[(String, String)]) -> repobell_core::DeleteOutcome {
+    let server = server_branches(work).unwrap();
+    delete_branches(work, "main", picks, &server).unwrap()
+}
+
+fn exists(work: &Path, name: &str) -> bool {
+    git(work, &["branch", "--list", name]).trim() != ""
+}
+
+#[test]
+fn delete_removes_branch_and_its_config() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "feat");
+    let p = pick(&work, "feat");
+    let out = delete(&work, &[p]);
+    assert_eq!(out.deleted.len(), 1);
+    git_expect_fail(&work, &["rev-parse", "--verify", "-q", "refs/heads/feat"]);
+    git_expect_fail(&work, &["config", "--get", "branch.feat.merge"]);
+}
+
+#[test]
+fn delete_skips_branch_that_moved() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "feat");
+    let p = pick(&work, "feat");
+    git(&work, &["checkout", "feat"]);
+    commit_file(&work, "more.txt", "y\n", "more");
+    git(&work, &["checkout", "main"]);
+    let out = delete(&work, &[p]);
+    assert_eq!(out.skipped, ["feat"]);
+    assert!(out.deleted.is_empty());
+    assert!(exists(&work, "feat"));
+}
+
+#[test]
+fn delete_skips_names_not_in_the_list() {
+    let (_t, work, _o) = setup();
+    push_branch(&work, "alive");
+    gone_branch(&work, "wt");
+    gone_branch(&work, "here");
+    git(&work, &["worktree", "add", "../wt-dir", "wt"]);
+    git(&work, &["checkout", "here"]);
+    let names = ["main", "here", "wt", "alive"];
+    let mut picks: Vec<_> = names.iter().map(|n| pick(&work, n)).collect();
+    picks.push(("ghost".into(), "0".repeat(40)));
+    let out = delete(&work, &picks);
+    assert!(out.deleted.is_empty());
+    assert_eq!(out.skipped.len(), 5);
+    for n in names {
+        assert!(exists(&work, n), "{n}");
+    }
+}
+
+#[test]
+fn delete_skips_branch_removed_by_hand() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "a");
+    gone_branch(&work, "b");
+    let picks = [pick(&work, "a"), pick(&work, "b")];
+    git(&work, &["branch", "-D", "a"]);
+    let out = delete(&work, &picks);
+    assert_eq!(out.deleted.len(), 1);
+    assert_eq!(out.deleted[0].name, "b");
+    assert_eq!(out.skipped, ["a"]);
+}
+
+#[test]
+fn restore_brings_back_sha_and_upstream() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "feat");
+    let p = pick(&work, "feat");
+    let out = delete(&work, std::slice::from_ref(&p));
+    assert!(can_restore(&work, &out.deleted));
+    let r = restore_branches(&work, &out.deleted).unwrap();
+    assert_eq!(r.restored, ["feat"]);
+    assert_eq!(sha_of(&work, "feat"), p.1);
+    assert_eq!(
+        git(&work, &["config", "--get", "branch.feat.remote"]).trim(),
+        "origin"
+    );
+    assert_eq!(
+        git(&work, &["config", "--get", "branch.feat.merge"]).trim(),
+        "refs/heads/feat"
+    );
+}
+
+#[test]
+fn restore_skips_taken_name() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "feat");
+    let out = delete(&work, &[pick(&work, "feat")]);
+    git(&work, &["branch", "feat"]);
+    let new_sha = sha_of(&work, "feat");
+    assert!(!can_restore(&work, &out.deleted));
+    let r = restore_branches(&work, &out.deleted).unwrap();
+    assert_eq!(r.skipped, ["feat"]);
+    assert!(r.restored.is_empty());
+    assert_eq!(sha_of(&work, "feat"), new_sha);
+}
+
+#[test]
+fn restore_slash_unicode_names() {
+    let (_t, work, _o) = setup();
+    gone_branch(&work, "feature/login");
+    gone_branch(&work, "fix/ünï");
+    let picks = [pick(&work, "feature/login"), pick(&work, "fix/ünï")];
+    let out = delete(&work, &picks);
+    assert_eq!(out.deleted.len(), 2);
+    let r = restore_branches(&work, &out.deleted).unwrap();
+    assert_eq!(r.restored.len(), 2);
+    assert_eq!(sha_of(&work, "fix/ünï"), picks[1].1);
 }
