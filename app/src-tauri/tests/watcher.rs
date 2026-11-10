@@ -297,6 +297,34 @@ fn no_line_when_server_never_answered() {
     let card = check(&settings, &mut cleanup);
     assert!(card.old_branches.is_empty());
     assert!(cleanup.server.is_empty());
+    // Only the fetch error: same kind and message as a plain repo with the same broken remote.
+    let plain = TempDir::new().unwrap();
+    repo_with_origin(plain.path(), "p", "/nonexistent/remote.git");
+    let plain_settings = Settings {
+        folders: vec![plain.path().to_path_buf()],
+        ..Settings::default()
+    };
+    let plain_card = check(&plain_settings, &mut Cleanup::default());
+    assert_eq!(card.error_kind.as_deref(), Some("not_found"));
+    assert_eq!(card.error, plain_card.error);
+}
+
+#[test]
+fn no_server_call_after_a_failed_fetch() {
+    let (_tmp, remote, me, settings) = merged_feat();
+    git(&remote, &["branch", "-D", "feat"]);
+    // ls-remote still works, but fetching main fails: its ref in the clone is locked.
+    let bob = _tmp.path().join("bob");
+    clone(&remote, &bob, "bob@x.test");
+    commit_and_push(&bob, "b1.txt");
+    std::fs::write(me.join(".git/refs/remotes/origin/main.lock"), "").unwrap();
+    let mut cleanup = Cleanup::default();
+    let card = check(&settings, &mut cleanup);
+    assert!(card.error.is_some(), "fetching main must fail here");
+    assert!(
+        cleanup.server.is_empty(),
+        "no ls-remote after a failed fetch"
+    );
 }
 
 #[test]

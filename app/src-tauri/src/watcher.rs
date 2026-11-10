@@ -561,9 +561,18 @@ pub fn check_repositories(
             None
         } else {
             let e = fetch_repo(&path);
-            if let Ok(st) = repobell_core::status(&path) {
-                let main = st.main_branch.unwrap_or_else(|| "main".to_string());
-                refresh_server_branches(&path, &main, &mut cleanup.server, now_seconds(), false);
+            // A failed fetch just showed the server can't answer: don't wait on it again.
+            if e.is_none() {
+                if let Ok(st) = repobell_core::status(&path) {
+                    let main = st.main_branch.unwrap_or_else(|| "main".to_string());
+                    refresh_server_branches(
+                        &path,
+                        &main,
+                        &mut cleanup.server,
+                        now_seconds(),
+                        false,
+                    );
+                }
             }
             e
         };
