@@ -163,7 +163,7 @@ The light theme is the only theme today. The code shows no dark mode.
 - Warm neutral greys, never pure grey or black.
 - Red, amber and green appear only as status, always as a pale wash with dark text.
 - Ubuntu type at 12 to 18px, weights 400, 500 and 700.
-- Large hit areas: 36 to 44px high controls.
+- Large hit areas: 36 to 44px high controls. Row buttons are 32px because the whole row is also a hit area.
 
 ## Colors
 
@@ -206,7 +206,7 @@ A warm grey ground with white lists, one confident blue, and three pale status w
 
 ### Hierarchy
 - **Headline** (700, 18px): Welcome and empty-state headings.
-- **Title** (700, 15px): Header title and repo names on rows.
+- **Title** (700, 15px): Header title. Repo names on rows are 14px, 700.
 - **Body** (400 to 500, 14px, 1.4): Buttons, banners, row text. The workhorse size.
 - **Label** (500, 13px): Hints, field labels, small buttons and links.
 - **Caption** (500, 12px): Badges, chips and field hints.
@@ -245,10 +245,10 @@ Softly rounded rectangles. The window is 12px. Group lists and menus are 10px. B
 ## Components
 
 ### Buttons
-- **Shape:** 8px radius, 36 to 40px high, 14px text.
+- **Shape:** 8px radius, 36 to 40px high, 14px text. Row buttons are 32px high with 13px text.
 - **Primary:** Filled Signal Blue, white text, 500 weight, 0 16px padding (38px high). Hover goes to Signal Blue Deep.
 - **Outline:** White fill, blue 1px border and text. The Update button on a row (32px high). Hover adds Blue Wash.
-- **Update main:** No fill, Signal Blue text, 32px high, 0 8px padding. Hover adds Blue Wash. A quiet text button, so a blue outline stays a sign of team news.
+- **Update main:** No fill, Signal Blue text, 32px high, 0 8px padding. Hover adds Blue Wash. A quiet text button, so a blue outline stays a sign of team news. The "Mark all as seen" button on the News label is the same style with a 6px radius.
 - **Secondary:** White fill, Strong Border, Ink text, 40px high.
 - **Text:** No fill, Soft Ink text, Chip Grey on hover. Used for cancel and dismiss.
 - **Undo:** White fill, Green Edge border, green text. Disabled goes flat grey (#f3f3f1 fill).
@@ -284,7 +284,7 @@ Short and functional. State changes ease over 0.15s, the row highlight over 0.3s
 ### Do:
 - **Do** keep the window flat: white lists on Warm Canvas with 1px borders.
 - **Do** reserve Signal Blue (#1f5fd1) for news, the main action and focus.
-- **Do** make every control at least 36px high, and 40px or more for actions.
+- **Do** make every control at least 36px high, and 40px or more for actions. Row buttons are the exception at 32px.
 - **Do** show status as pale wash, border and dark text.
 - **Do** keep the 2px blue focus outline on all focusable elements.
 - **Do** honor `prefers-reduced-motion` for every animation.
