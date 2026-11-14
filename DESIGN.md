@@ -45,6 +45,10 @@ typography:
     fontFamily: "Ubuntu, system-ui, -apple-system, sans-serif"
     fontSize: "12px"
     fontWeight: 500
+  mono:
+    fontFamily: "Ubuntu Mono, ui-monospace, monospace"
+    fontSize: "12px"
+    fontWeight: 400
 rounded:
   sm: "6px"
   md: "8px"
@@ -189,6 +193,7 @@ A warm grey ground with white cards, one confident blue, and three pale status w
 
 **Display Font:** none. The app has no display face.
 **Body Font:** Ubuntu (with system-ui, -apple-system, sans-serif)
+**Label/Mono Font:** Ubuntu Mono (with ui-monospace, monospace)
 
 **Character:** One family, the platform's own. Hierarchy comes from size and weight, not from a second typeface.
 
@@ -198,6 +203,7 @@ A warm grey ground with white cards, one confident blue, and three pale status w
 - **Body** (400 to 500, 14px, 1.4): Buttons, banners, card text. The workhorse size.
 - **Label** (500, 13px): Hints, field labels, small buttons and links.
 - **Caption** (500, 12px): Badges, chips and field hints.
+- **Mono** (400, 12 to 13px): File paths, folder paths and Git details (stash names, commands). Never for prose.
 
 ### Named Rules
 **The Plain Size Rule.** Use only 12, 13, 14, 15 and 18px. A new size needs a reason that is not taste.
