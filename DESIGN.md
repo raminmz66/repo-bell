@@ -222,8 +222,9 @@ A single column inside a fixed 420 by 640 window. The main body scrolls and has 
 ### Group lists and rows
 - **Group list:** Paper White, 10px radius, 1px Hairline border, Hairline dividers between rows. One list per group.
 - **Section label:** 12px, 700, uppercase, Soft Ink, with the count in Muted Ink (500).
-- **Row:** about 9px 12px padding, two lines. Click anywhere on it to open it.
-- **Row states:** hover and open use #fbfbf9. A notification jump flashes an inset 2px Signal Blue ring on #f4f8fe. An open alert shows an inset 1.5px red (#c4372b) ring.
+- **Row:** about 9px 12px padding, two lines. Click anywhere on it to open it. A branch name that is too long is cut with an ellipsis and shows in full on hover. The main status and flags are never cut.
+- **Feed titles:** one line each, cut with an ellipsis, full title on hover. The bullet stays.
+- **Row states:** hover (lines 1 and 2 only) and open use #fbfbf9. A notification jump flashes an inset 2px Signal Blue ring on #f4f8fe. An open alert shows an inset 1.5px red (#c4372b) ring.
 
 ## Elevation & Depth
 
@@ -274,7 +275,7 @@ Softly rounded rectangles. The window is 12px. Group lists and menus are 10px. B
 Red wash, Red Edge border, Red Ink 14px text, 8px radius, with an underlined text-button dismiss.
 
 ### Navigation
-A header band (#ebebe8) with a 1px bottom border, a centered 15px bold title and 8px-radius icon buttons that darken on hover (#e0e0dc). The footer is white with a Hairline top border and the same style of ghost buttons. There are no tabs.
+A header band (#ebebe8) with a 1px bottom border, a centered 15px bold title and 8px-radius icon buttons that darken on hover (#e0e0dc). The footer is white, 52px high, with a Hairline top border and the same style of ghost buttons. There are no tabs.
 
 ### Motion
 Short and functional. State changes ease over 0.15s, the row highlight over 0.3s, and spinners turn at 1s linear. Reduced-motion media queries exist in the app, the rows, Settings and Welcome.

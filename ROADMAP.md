@@ -81,6 +81,7 @@ Each screen gets a senior UI/UX review before it is marked done.
 
 ## Later
 
+- Offline: keep the last list visible with a "Can't reach the server" banner instead of hiding everything.
 - GitHub and GitLab info (open pull requests, who pushed)
 - macOS and Windows
 - Better conflict help

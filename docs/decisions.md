@@ -149,6 +149,8 @@ When the window opens, news rows start open if 2 or fewer repos have news, other
 
 While one of its actions runs, a row stays in the group it was in. A row with an open alert stays out of Up to date.
 
+After review: a branch name that is too long is cut with "..." and shows in full on hover. The main status and the flags are never cut. Rows on a branch that need Update main come first, then rows with unsaved changes. When nothing is new and nothing is wrong but rows are listed, the headline stays compact: "All quiet" with "Nothing new in your N repos". Each feed title is one line, and the full title shows on hover.
+
 Measured before the change: 1 of 9 repos that needed a look fit above the fold at 420×640 with 16 repos. Layout B (leaner cards) scrolls again at 5 news repos, and C (list then repo page) needs 2 clicks plus Back per action.
 
 ## Design reviews

@@ -298,3 +298,15 @@ Add when built:
 - `docs/decisions.md`: the section above.
 - `DESIGN.md`: rows and group lists, 32px row buttons, the section label, Update main as a blue text button, and the overview line that says it describes the card list.
 - `ROADMAP.md`: the new item and the current step.
+
+## Changes after review (2026-11-14)
+
+- Quiet groups render once, so a running action keeps its result when the page switches between All quiet and the news view.
+- A branch name is cut with "..." and has its full name on hover. "· main N behind", "· main up to date" and the flags are never cut.
+- On a branch order: repos behind main first, then repos with unsaved changes, then the rest. The order inside each tier stays.
+- The branch hint is one line: "Update main refreshes main. Your files stay as they are." The button keeps the full sentence on hover.
+- The footer is 52px high. Add folder stays at least 36px high.
+- After "Mark all as seen", focus moves to Check now.
+- With no news and no error but rows listed, the headline is compact: the plain bell, "All quiet", and "Nothing new in your N repos · Checked X". The big centered message stays when every repo is plain.
+- Each feed title is one line, cut with "..." and shown in full on hover.
+- Row hover reacts to lines 1 and 2 only, and it never replaces a ring.
