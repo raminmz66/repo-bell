@@ -386,7 +386,7 @@
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <span class="l2-text" class:error-text={repo.error} class:titled={line2.title} title={line2.title} onclick={line2.title && expandable ? onToggle : undefined}>{line2.text}</span>
         {/if}
-        {#if showBranchFlag}<span class="flag flag-grey">{branchName}</span>{/if}
+        {#if showBranchFlag}<span class="flag flag-grey flag-branch">{branchName}</span>{/if}
         {#if showUnsaved}<span class="flag flag-amber" title="You edited files that aren't saved as a change yet">Unsaved</span>{/if}
         {#if showOld}
           <button
@@ -572,7 +572,11 @@
   .row.open {
     background: #fbfbf9;
   }
-  .row.highlight {
+  .row.can-open:hover {
+    background: #fbfbf9;
+  }
+  .row.highlight,
+  .row.can-open.highlight:hover {
     background: #f4f8fe;
     box-shadow: inset 0 0 0 2px #1f5fd1;
   }
@@ -588,9 +592,6 @@
     row-gap: 2px;
     align-items: center;
     padding: 9px 12px;
-  }
-  .row.can-open .row-head:hover {
-    background: #fbfbf9;
   }
   .title {
     display: flex;
@@ -711,6 +712,11 @@
   .flag-grey {
     background: #eeeeec;
     color: #3d3d45;
+  }
+  .flag-branch {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .flag-amber {
     background: #fceedd;
