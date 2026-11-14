@@ -322,6 +322,35 @@ describe("App", () => {
       // a warn notice is an alert, so the row now sits under On main
       const section = screen.getByRole("heading", { level: 2, name: /^On main/ }).closest("section")!;
       expect(within(section).getByText("Couldn't delete the branch.")).toBeInTheDocument();
+      // trying again from On main keeps the row there until the second delete ends
+      await fireEvent.click(within(section).getByRole("button", { name: /1 old branch/ }));
+      await fireEvent.click(await within(section).findByRole("button", { name: "Delete 1 branch" }));
+      expect(await screen.findByRole("button", { name: "Deleting…" })).toBeDisabled();
+      expect(screen.getByRole("heading", { level: 2, name: /^On main/ }).closest("section")).toContainElement(screen.getByRole("button", { name: "Deleting…" }));
+      finish({ status: "failed", message: "Still couldn't delete.", detail: null });
+      expect(await screen.findByText("Still couldn't delete.")).toBeInTheDocument();
+    });
+
+    it("unpins a row whose action was running when the Up to date list closed", async () => {
+      const merged = { name: "old-one", sha: "aaa111", merged: true, last_commit_time: 1_700_000_000 };
+      const row = (o = {}) => makeRepo({ path: `${P}/web-app`, name: "web-app", old_branches: [merged], ...o });
+      mockIPC(
+        (cmd) => {
+          if (cmd === "get_app_state") return makeState({ repos: [row()] });
+          if (cmd === "delete_old_branches") return new Promise(() => {});
+        },
+        { shouldMockEvents: true },
+      );
+      render(App);
+      const accordion = await screen.findByRole("button", { name: /Up to date 1 repo/ });
+      await fireEvent.click(accordion);
+      await fireEvent.click(await screen.findByRole("button", { name: /1 old branch/ }));
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      await screen.findByRole("button", { name: "Deleting…" });
+      await fireEvent.click(accordion);
+      await emit("state-updated", makeState({ repos: [row({ behind: 2, new_count: 2, feed: makeFeed() })] }));
+      const news = await screen.findByRole("heading", { level: 2, name: /^News/ });
+      expect(within(news.closest("section")!).getByText("web-app")).toBeInTheDocument();
     });
 
     it("keeps an On main row in place while its update runs, even if a check makes it plain", async () => {

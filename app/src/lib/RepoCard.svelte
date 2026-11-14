@@ -23,7 +23,7 @@
 </script>
 
 <script lang="ts">
-  import { tick } from "svelte";
+  import { onDestroy, tick } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import FeedList from "./FeedList.svelte";
   import type { RepoCardView, UpdateResult, SimpleResult } from "./types";
@@ -123,9 +123,13 @@
     notice?.kind === "error" ||
     actionError !== null;
   $: panels.set(repo.path, { plan, notice, noticeFrom, conflictFiles, conflictMessage, stashAlert, stashRef, stashCommand, mainDetail, showDetail, fileError, actionError, showBranches, choice });
-  $: onAlertChange(repo.path, hasAlert);
+  // Busy goes first: the window pins the row's group before an alert change can move it.
   $: onBusyChange(repo.path, busy !== "");
+  $: onAlertChange(repo.path, hasAlert);
   $: if (highlight && rootEl) reveal();
+
+  // A row closed in the middle of an action must not leave its group pinned.
+  onDestroy(() => onBusyChange(repo.path, false));
 
   async function reveal() {
     await tick();

@@ -10,9 +10,9 @@
   import WelcomeView from "./lib/WelcomeView.svelte";
   import type { PanelState } from "./lib/RepoCard.svelte";
   import type { AppStateView, FolderError, RepoCardView } from "./lib/types";
+  import { errText, plural, timeAgo } from "./lib/util";
 
   type Group = "error" | "news" | "onMain" | "onBranch" | "upToDate";
-  import { errText, plural, timeAgo } from "./lib/util";
 
   let state: AppStateView | null = null;
   let loadError: string | null = null;
