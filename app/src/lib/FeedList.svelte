@@ -38,7 +38,7 @@
 {#if more > 0 || feed.files_changed.length > 0}
   <div class="feed-meta">
     {#if more > 0}<span class="more">{more} more</span>{/if}
-    {#if more > 0 && feed.files_changed.length > 0}{" · "}{/if}
+    {#if more > 0 && feed.files_changed.length > 0}<span class="dot" aria-hidden="true">{" · "}</span>{/if}
     {#if feed.files_changed.length > 0}
       <button class="btn-files-toggle" onclick={() => (showFiles = !showFiles)} aria-expanded={showFiles}>
         <svg class="chevron" class:open={showFiles} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -95,6 +95,13 @@
   }
   .more {
     padding-left: 18px;
+  }
+  /* Flex items drop the spaces around the dot, so the gap comes from margins. */
+  .dot {
+    margin: 0 0 0 6px;
+  }
+  .dot + .btn-files-toggle {
+    margin-left: 0;
   }
   .btn-files-toggle {
     align-self: flex-start;

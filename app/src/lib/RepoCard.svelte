@@ -30,7 +30,6 @@
   import { errText, sentence, plural, timeAgo } from "./util";
 
   export let repo: RepoCardView;
-  /** Current time in ms, so "5 min ago" stays fresh. */
   /** A check is running, so "Try again" would only queue another one. */
   export let checking: boolean = false;
   /** Scroll to this card and flash it (from the tray menu). */
