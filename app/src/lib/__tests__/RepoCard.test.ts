@@ -3,6 +3,7 @@ import { render, fireEvent, screen, waitFor } from "@testing-library/svelte";
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
 import RepoCard from "../RepoCard.svelte";
 import { makeRepo, makeFeed } from "../../test-helpers";
+import { shortTimeAgo } from "../util";
 import type { PlanView, UpdateResult, OldBranch } from "../types";
 
 const PATH = "/home/user/projects/my-repo";
@@ -24,36 +25,116 @@ describe("RepoCard", () => {
   afterEach(() => clearMocks());
 
   describe("header and badges", () => {
-    it("shows the news count as the badge and Behind as a quiet status next to Update", () => {
+    it("news row: badge with hover, no Behind", () => {
       render(RepoCard, { repo: newsRepo({ behind: 4, new_count: 3 }) });
-      const badge = screen.getByText("3 new");
-      expect(badge).toBeInTheDocument();
-      const behind = screen.getByText("Behind by 4");
-      expect(behind).toHaveAttribute("title", "The team made 4 changes you don't have yet");
-      // the two numbers are different elements and the badge never says "Behind"
-      expect(badge).not.toBe(behind);
-      expect(badge.textContent).not.toMatch(/behind/i);
+      expect(screen.getByText("3 new")).toHaveAttribute("title", "Your team made 3 changes since you last looked");
+      expect(screen.queryByText(/Behind by/)).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Update" })).toBeInTheDocument();
     });
 
     it("has no news badge when only behind", () => {
       render(RepoCard, { repo: makeRepo({ behind: 2 }) });
       expect(screen.queryByText(/\bnew\b/)).not.toBeInTheDocument();
-      expect(screen.getByText("Behind by 2")).toBeInTheDocument();
+      expect(screen.getByText("Behind by 2")).toHaveAttribute("title", "The team made 2 changes you don't have yet");
     });
 
-    it("shows Ahead with hover text and Has unsaved changes", () => {
+    describe("news line 2", () => {
+      const t = Math.floor(Date.now() / 1000) - 100;
+      const by = (...names: string[]) =>
+        names.map((n, i) => ({ author: n, title: `T${i}`, sha: `s${i}`, timestamp: t - i, mine: n === "me" }));
+      const withChanges = (names: string[], files = ["a.ts", "b.ts"]) =>
+        newsRepo({ feed: makeFeed({ total_changes: names.length, changes: by(...names), files_changed: files }) });
+
+      it("names authors and files", () => {
+        render(RepoCard, { repo: withChanges(["Sara", "Amine"]) });
+        expect(screen.getByText("Sara, Amine · 2 files")).toBeInTheDocument();
+      });
+
+      it("says You for the user's own change", () => {
+        render(RepoCard, { repo: withChanges(["me", "Amine"]) });
+        expect(screen.getByText(/^You, Amine/)).toBeInTheDocument();
+      });
+
+      it("says 1 file for one, and leaves files out when there are none", () => {
+        const { unmount } = render(RepoCard, { repo: withChanges(["Sara", "Amine"], ["a.ts"]) });
+        expect(screen.getByText("Sara, Amine · 1 file")).toBeInTheDocument();
+        unmount();
+        render(RepoCard, { repo: withChanges(["Sara", "Amine"], []) });
+        expect(screen.getByText("Sara, Amine")).toBeInTheDocument();
+      });
+
+      it("cuts to 2 names and counts the others", () => {
+        const { unmount } = render(RepoCard, { repo: withChanges(["Sara", "Amine", "Bo", "Cy"]) });
+        expect(screen.getByText("Sara, Amine and 2 others · 2 files")).toBeInTheDocument();
+        unmount();
+        render(RepoCard, { repo: withChanges(["Sara", "Amine", "Bo"]) });
+        expect(screen.getByText("Sara, Amine and 1 other · 2 files")).toBeInTheDocument();
+      });
+    });
+
+    it("shows Ahead with hover text and Unsaved", () => {
       render(RepoCard, { repo: newsRepo({ ahead: 1, unsaved: true }) });
       expect(screen.getByText("Ahead by 1")).toHaveAttribute("title", "You have 1 change the team doesn't have yet");
-      expect(screen.getByText("Has unsaved changes")).toBeInTheDocument();
+      expect(screen.getByText("Unsaved")).toHaveAttribute("title", "You edited files that aren't saved as a change yet");
     });
 
-    it("renders an up-to-date repo as a compact row without a disclosure button", () => {
+    it("shows the newest change time in short form", () => {
+      render(RepoCard, { repo: newsRepo() });
+      expect(screen.getByText("5 min")).toHaveAttribute("title", "Newest change 5 min ago");
+      const now = Date.now();
+      expect(shortTimeAgo(now / 1000 - 10, now)).toBe("now");
+      expect(shortTimeAgo(now / 1000 - 3 * 3600, now)).toBe("3 h");
+      expect(shortTimeAgo(null, now)).toBe("");
+    });
+
+    it("up-to-date row has no button and no status text", () => {
       const { container } = render(RepoCard, { repo: makeRepo() });
       expect(screen.getByText("my-repo")).toBeInTheDocument();
-      expect(screen.getByText("Up to date")).toBeInTheDocument();
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
-      expect(container.querySelector(".repo-card")).toHaveClass("compact");
+      expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
+      expect(container.querySelector(".compact")).toBeNull();
+    });
+
+    it("a row that can't open has no toggle", () => {
+      const { container, unmount } = render(RepoCard, {
+        repo: makeRepo({ error: "Can't reach the server.", error_kind: "offline" }),
+      });
+      expect(container.querySelector("[aria-expanded]")).toBeNull();
+      expect(container.querySelector('[role="button"]')).toBeNull();
+      expect(screen.getByText("my-repo").closest("h3")).not.toBeNull();
+      unmount();
+      const second = render(RepoCard, { repo: makeRepo() });
+      expect(second.container.querySelector("[aria-expanded]")).toBeNull();
+      expect(second.container.querySelector('[role="button"]')).toBeNull();
+      expect(screen.getByText("my-repo").closest("h3")).not.toBeNull();
+    });
+
+    it("old branches flag opens the list without toggling the row", async () => {
+      const onToggle = vi.fn();
+      const t = Math.floor(Date.now() / 1000) - 3 * 86400;
+      const old = [
+        { name: "a", sha: "1", merged: true, last_commit_time: t },
+        { name: "b", sha: "2", merged: false, last_commit_time: t },
+      ];
+      mockIPC(() => {});
+      render(RepoCard, { repo: makeRepo({ feed: makeFeed(), old_branches: old }), onToggle });
+      const flag = screen.getByRole("button", { name: "2 old branches" });
+      await fireEvent.click(flag);
+      expect(flag).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("Merged into main")).toBeInTheDocument();
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it("only the toggle toggles the row", async () => {
+      const onToggle = vi.fn();
+      mockIPC((cmd) => { if (cmd === "preview_update") return fastForward; });
+      render(RepoCard, { repo: newsRepo(), expanded: true, onToggle });
+      await fireEvent.click(screen.getByRole("button", { name: "Update" }));
+      await fireEvent.click(screen.getByText("Fix login timeout"));
+      await fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+      expect(onToggle).not.toHaveBeenCalled();
+      await fireEvent.click(screen.getByRole("button", { name: /my-repo/ }));
+      expect(onToggle).toHaveBeenCalledTimes(1);
     });
 
     it("follows the expanded prop", () => {
@@ -71,7 +152,7 @@ describe("RepoCard", () => {
       const { container, rerender } = render(RepoCard, { repo: newsRepo(), expanded: true, onToggle });
       expect(container.querySelector('[role="button"]')).toBeNull();
       const toggle = screen.getByRole("button", { name: /my-repo/ });
-      expect(toggle.closest("h2")).not.toBeNull();
+      expect(toggle.closest("h3")).not.toBeNull();
       expect(screen.getByText("Fix login timeout")).toBeInTheDocument();
       await fireEvent.click(toggle);
       expect(onToggle).toHaveBeenCalledTimes(1);
@@ -87,7 +168,7 @@ describe("RepoCard", () => {
       await rerender({ highlight: true });
       await waitFor(() => expect(scroll).toHaveBeenCalled());
       expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "false");
-      expect(container.querySelector(".repo-card")).toHaveClass("highlight");
+      expect(container.querySelector(".row")).toHaveClass("highlight");
     });
   });
 
@@ -532,10 +613,11 @@ describe("RepoCard", () => {
 
     it("names the branch and offers Update main instead of Update", () => {
       render(RepoCard, { repo: side() });
-      expect(screen.getByText("You're on feature-x")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Update main" })).toBeInTheDocument();
+      expect(screen.getByText("feature-x · main 3 behind")).toBeInTheDocument();
+      const hint = "Refreshes main in the background. Your files stay as they are.";
+      expect(screen.getByRole("button", { name: "Update main" })).toHaveAttribute("title", hint);
       expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
-      expect(screen.getByText("Refreshes the main version in the background. Your files stay as they are.")).toBeInTheDocument();
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
       // the side branch's own behind/ahead numbers would mislead here
       expect(screen.queryByText(/Behind by/)).not.toBeInTheDocument();
       expect(screen.queryByText(/Ahead by/)).not.toBeInTheDocument();
@@ -544,8 +626,7 @@ describe("RepoCard", () => {
     it("shows a quiet note instead of the button when main has nothing new", () => {
       render(RepoCard, { repo: makeRepo({ on_main: false, branch: "feature-x", main_behind: 0 }) });
       expect(screen.queryByRole("button", { name: "Update main" })).not.toBeInTheDocument();
-      expect(screen.getByText("Main is up to date")).toBeInTheDocument();
-      expect(screen.queryByText(/Refreshes the main version/)).not.toBeInTheDocument();
+      expect(screen.getByText("feature-x · main up to date")).toBeInTheDocument();
     });
 
     it("asks the window to refresh after Update main", async () => {
@@ -559,8 +640,16 @@ describe("RepoCard", () => {
     });
 
     it("says so when HEAD isn't on a branch", () => {
-      render(RepoCard, { repo: makeRepo({ on_main: false, branch: null }) });
-      expect(screen.getByText("You're not on a branch")).toBeInTheDocument();
+      render(RepoCard, { repo: makeRepo({ on_main: false, branch: null, main_behind: 3 }) });
+      expect(screen.getByText("Not on a branch · main 3 behind")).toBeInTheDocument();
+    });
+
+    it("news row on a side branch", () => {
+      render(RepoCard, { repo: newsRepo({ on_main: false, branch: "feature-x", main_behind: 2 }) });
+      expect(screen.getByRole("button", { name: "Update main" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
+      expect(screen.getByText("feature-x")).toBeInTheDocument();
+      expect(screen.getByText(/^Alex · 2 files$/)).toBeInTheDocument();
     });
 
     it("calls update_main and shows its message", async () => {
@@ -599,10 +688,10 @@ describe("RepoCard", () => {
   describe("error card", () => {
     const err = (o = {}) => makeRepo({ error: "Git can't log in to the server. Your login may have expired.", error_kind: "login", ...o });
 
-    it("shows the reason, a Can't check badge and Try again that checks", async () => {
+    it("shows the reason, no Can't check badge and Try again that checks", async () => {
       const onTryAgain = vi.fn();
       render(RepoCard, { repo: err(), onTryAgain });
-      expect(screen.getByText("Can't check")).toBeInTheDocument();
+      expect(screen.queryByText("Can't check")).not.toBeInTheDocument();
       expect(screen.getByText(/can't log in/)).toBeInTheDocument();
       expect(screen.queryByText(/new$/)).not.toBeInTheDocument();
       await fireEvent.click(screen.getByRole("button", { name: "Try again" }));

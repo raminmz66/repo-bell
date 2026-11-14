@@ -155,7 +155,7 @@
   {#if quietVisible.length > 0}
     <div class="cards-list tight">
       {#each quietVisible as r (r.path)}
-        <RepoCard repo={r} highlight={highlightPath === r.path} onStateRefresh={loadState} />
+        <RepoCard repo={r} {now} highlight={highlightPath === r.path} onStateRefresh={loadState} />
       {/each}
     </div>
   {/if}
@@ -170,7 +170,7 @@
     {#if showUpToDate}
       <div class="cards-list tight">
         {#each upToDate as r (r.path)}
-          <RepoCard repo={r} highlight={highlightPath === r.path} onStateRefresh={loadState} />
+          <RepoCard repo={r} {now} highlight={highlightPath === r.path} onStateRefresh={loadState} />
         {/each}
       </div>
     {/if}
@@ -180,7 +180,7 @@
 {#snippet errorList()}
   <div class="cards-list">
     {#each errorRepos as r (r.path)}
-      <RepoCard repo={r} checking={isChecking} highlight={highlightPath === r.path} onTryAgain={handleCheckNow} onStopWatching={stopWatching} onStateRefresh={loadState} />
+      <RepoCard repo={r} {now} checking={isChecking} highlight={highlightPath === r.path} onTryAgain={handleCheckNow} onStopWatching={stopWatching} onStateRefresh={loadState} />
     {/each}
     {#each folderErrors as f (f.path)}
       <FolderErrorCard folder={f} onRemove={removeFolder} />
@@ -262,7 +262,7 @@
         {#if newsRepos.length > 0}
           <div class="cards-list">
             {#each newsRepos as r (r.path)}
-              <RepoCard repo={r} highlight={highlightPath === r.path} onStateRefresh={loadState} />
+              <RepoCard repo={r} {now} highlight={highlightPath === r.path} onStateRefresh={loadState} />
             {/each}
           </div>
         {/if}

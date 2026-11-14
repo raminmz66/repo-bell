@@ -10,6 +10,11 @@ export function timeAgo(timestamp: number | null, now: number = Date.now()): str
   return `${Math.floor(hours / 24)} d ago`;
 }
 
+/** `timeAgo` without " ago", and "now" for "just now": "5 min", "2 h", "3 d". */
+export function shortTimeAgo(timestamp: number | null, now: number = Date.now()): string {
+  return timeAgo(timestamp, now).replace(" ago", "").replace("just now", "now");
+}
+
 /** The plain-words text of a rejected IPC call. */
 export function errText(e: unknown): string {
   if (typeof e === "string") return e;

@@ -73,7 +73,7 @@ describe("App", () => {
       render(App);
       expect(await screen.findByRole("heading", { level: 1, name: "2 repos have news, 1 can't be checked" })).toBeInTheDocument();
       expect(screen.getByText("3 new")).toBeInTheDocument();
-      expect(screen.getByText("Behind by 4")).toBeInTheDocument();
+      expect(screen.queryByText("Behind by 4")).not.toBeInTheDocument();
       expect(screen.queryByText("4 new")).not.toBeInTheDocument();
     });
 
@@ -81,14 +81,13 @@ describe("App", () => {
       mockIPC((cmd) => { if (cmd === "get_app_state") return newsState(); });
       render(App);
       const section = await screen.findByRole("heading", { level: 2, name: "1 repo can't be checked" });
-      const docs = screen.getByRole("heading", { level: 2, name: "docs" });
-      const web = screen.getByRole("heading", { level: 2, name: /^web-app/ });
+      const docs = screen.getByRole("heading", { level: 3, name: "docs" });
+      const web = screen.getByRole("heading", { level: 3, name: /^web-app/ });
       // news cards come first, the error section after them
       expect(web.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(section.compareDocumentPosition(docs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       // an errored repo has no news badge
-      expect(docs.closest("article")!.textContent).not.toMatch(/\d+ new/);
-      expect(screen.getByText("Can't check")).toBeInTheDocument();
+      expect(docs.closest("li")!.textContent).not.toMatch(/\d+ new/);
     });
 
     it("shows only errors as the headline when there is no news", async () => {
@@ -189,9 +188,9 @@ describe("App", () => {
       expect(screen.queryByText("quiet-one")).not.toBeInTheDocument();
       await fireEvent.click(accordion);
       expect(accordion).toHaveAttribute("aria-expanded", "true");
-      const row = screen.getByText("quiet-one").closest("article")!;
-      expect(row).toHaveClass("compact");
-      expect(row).toHaveTextContent("Up to date");
+      const row = document.querySelector(`[data-repo-path="${P}/quiet-one"]`)!;
+      expect(row).not.toHaveClass("compact");
+      expect(row).not.toHaveTextContent("Up to date");
       expect(row.querySelector("button")).toBeNull(); // no disclosure, no Update
     });
 
@@ -210,7 +209,7 @@ describe("App", () => {
       });
       render(App);
       expect(await screen.findByRole("button", { name: "Update main" })).toBeInTheDocument();
-      expect(screen.getByText("You're on feature-x")).toBeInTheDocument();
+      expect(screen.getByText("feature-x · main 2 behind")).toBeInTheDocument();
       expect(screen.getByText(/Nothing new in your 2 repos/)).toBeInTheDocument();
     });
   });

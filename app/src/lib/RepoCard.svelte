@@ -27,9 +27,11 @@
   import { invoke } from "@tauri-apps/api/core";
   import FeedList from "./FeedList.svelte";
   import type { RepoCardView, UpdateResult, SimpleResult } from "./types";
-  import { errText, sentence, plural, timeAgo } from "./util";
+  import { errText, sentence, plural, timeAgo, shortTimeAgo } from "./util";
 
   export let repo: RepoCardView;
+  /** Current time in ms, so "5 min ago" stays fresh. */
+  export let now: number = Date.now();
   /** A check is running, so "Try again" would only queue another one. */
   export let checking: boolean = false;
   /** Scroll to this card and flash it (from the tray menu). */
@@ -72,14 +74,41 @@
   $: listId = `old-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   $: bodyId = `body-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   $: hasNews = !repo.error && repo.new_count > 0;
-  $: compact = !repo.error && repo.new_count === 0;
   $: expandable = !repo.error && repo.feed !== null;
   $: stopped = repo.error_kind === "folder_missing" || repo.error_kind === "not_a_repo";
   $: canUpdate = !repo.error && repo.on_main && repo.behind > 0;
   $: onSide = !repo.error && !repo.on_main;
   $: canUpdateMain = onSide && repo.main_behind > 0;
-  $: plainUpToDate = repo.on_main && repo.behind === 0 && repo.ahead === 0;
-  $: sideLabel = repo.branch ? `You're on ${repo.branch}` : "You're not on a branch";
+  $: branchName = repo.branch ?? "Not on a branch";
+  $: showUnsaved = !repo.error && repo.unsaved;
+  $: showAhead = !repo.error && repo.on_main && repo.ahead > 0;
+  $: showBranchFlag = hasNews && !repo.on_main;
+  // Authors of the changes, newest first: "Sara, Amine and 2 others".
+  $: authors = [
+    ...new Set(
+      [...(repo.feed?.changes ?? [])].sort((a, b) => b.timestamp - a.timestamp).map((c) => (c.mine ? "You" : c.author)),
+    ),
+  ];
+  $: fileCount = repo.feed?.files_changed.length ?? 0;
+  $: newsText = [
+    authors.length > 2
+      ? `${authors.slice(0, 2).join(", ")} and ${authors.length - 2} ${plural(authors.length - 2, "other")}`
+      : authors.join(", "),
+    fileCount > 0 ? `${fileCount} ${plural(fileCount, "file")}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  // The one text on line 2. Flags come after it.
+  $: line2 = repo.error
+    ? { text: repo.error, title: undefined }
+    : hasNews
+      ? { text: newsText, title: undefined }
+      : repo.on_main
+        ? repo.behind > 0
+          ? { text: `Behind by ${repo.behind}`, title: `The team made ${repo.behind} ${plural(repo.behind, "change")} you don't have yet` }
+          : { text: "", title: undefined }
+        : { text: `${branchName} · main ${repo.main_behind > 0 ? `${repo.main_behind} behind` : "up to date"}`, title: undefined };
+  $: hasLine2 = line2.text !== "" || showBranchFlag || showUnsaved || showOld || showAhead;
   $: showOld = !repo.error && repo.old_branches.length > 0;
   $: mergedRows = repo.old_branches.filter((b) => b.merged);
   $: unmergedRows = repo.old_branches.filter((b) => !b.merged);
@@ -295,97 +324,97 @@
 </script>
 
 {#snippet newBadge()}
-  <span class="badge badge-new" title={`Your team made ${repo.new_count} ${plural(repo.new_count, "change")} since you last looked`}>{repo.new_count} new</span>
+  <span class="badge" title={`Your team made ${repo.new_count} ${plural(repo.new_count, "change")} since you last looked`}>{repo.new_count} new</span>
 {/snippet}
 
-{#snippet behindText()}
-  <span class="status-behind" title={`The team made ${repo.behind} ${plural(repo.behind, "change")} you don't have yet`}>
-    Behind by {repo.behind}
-  </span>
-{/snippet}
-
-<article
-  class="repo-card"
-  class:compact
+<li
+  class="row"
+  class:open={expandable && expanded}
+  class:can-open={expandable}
   class:highlight
-  class:conflict-card={conflictFiles.length > 0 || stashAlert !== null}
+  class:alert-ring={conflictFiles.length > 0 || stashAlert !== null}
   data-repo-path={repo.path}
   bind:this={rootEl}
 >
-  <div class="card-header">
-    <div class="title-group">
-      <h2 class="repo-title">
-        {#if expandable}
-          <button class="disclosure" aria-expanded={expanded} aria-controls={bodyId} onclick={onToggle}>
-            <svg class="drawer-chevron" class:open={expanded} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M9 18l6-6-6-6"></path>
-            </svg>
-            <span class="name">{repo.name}</span>
-            {#if hasNews}{@render newBadge()}{/if}
+  <div class="row-head">
+    <h3 class="title" class:indent={!expandable}>
+      {#if expandable}
+        <button class="toggle" aria-expanded={expanded} aria-controls={bodyId} onclick={onToggle}>
+          <svg class="chevron" class:open={expanded} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 18l6-6-6-6"></path>
+          </svg>
+          <span class="name" title={repo.name}>{repo.name}</span>
+          {#if hasNews}{@render newBadge()}{/if}
+        </button>
+      {:else}
+        <span class="name" title={repo.name}>{repo.name}</span>
+        {#if hasNews}{@render newBadge()}{/if}
+      {/if}
+    </h3>
+
+    <div class="side" class:two={hasLine2}>
+      {#if hasNews && repo.feed?.newest_time}
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <span class="when" title={`Newest change ${timeAgo(repo.feed.newest_time, now)}`} onclick={expandable ? onToggle : undefined}>{shortTimeAgo(repo.feed.newest_time, now)}</span>
+      {/if}
+      {#if repo.error}
+        {#if stopped}
+          <button class="btn-secondary row-act" disabled={busy === "remove" || !onStopWatching} title="Stop watching this repo. Your files aren't touched." onclick={handleRemove}>
+            {busy === "remove" ? "Removing…" : "Remove"}
           </button>
         {:else}
-          <span class="name plain-name">{repo.name}</span>
+          <button class="btn-outline row-act" disabled={checking} onclick={handleTryAgain}>
+            {checking ? "Checking…" : "Try again"}
+          </button>
         {/if}
-      </h2>
-      {#if repo.error}
-        <span class="badge badge-err" title="RepoBell couldn't check this repo">Can't check</span>
-      {:else if hasNews && !expandable}
-        {@render newBadge()}
-      {:else if compact && plainUpToDate}
-        <span class="status-quiet">Up to date</span>
-      {/if}
-    </div>
-
-    <div class="action-group">
-      {#if canUpdate}
-        {#if !hasNews}{@render behindText()}{/if}
+      {:else if canUpdate}
         {#if !plan && conflictFiles.length === 0}
-          <button class="btn-update" bind:this={updateBtn} disabled={busy !== ""} onclick={startUpdate}>
+          <button class="btn-update row-act" bind:this={updateBtn} disabled={busy !== ""} onclick={startUpdate}>
             {busy === "preview" ? "Checking…" : busy === "update" ? "Updating…" : "Update"}
           </button>
         {/if}
       {:else if canUpdateMain}
-        <button class="btn-update" disabled={busy !== ""} onclick={handleUpdateMain}>
+        <button class="btn-main row-act" title="Refreshes main in the background. Your files stay as they are." disabled={busy !== ""} onclick={handleUpdateMain}>
           {busy === "main" ? "Updating main…" : "Update main"}
         </button>
-      {:else if onSide}
-        <span class="status-quiet">Main is up to date</span>
       {/if}
     </div>
+
+    {#if hasLine2}
+      <div class="l2">
+        {#if line2.text}
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <span class="l2-text" class:error-text={repo.error} class:titled={line2.title} title={line2.title} onclick={line2.title && expandable ? onToggle : undefined}>{line2.text}</span>
+        {/if}
+        {#if showBranchFlag}<span class="flag flag-grey">{branchName}</span>{/if}
+        {#if showUnsaved}<span class="flag flag-amber" title="You edited files that aren't saved as a change yet">Unsaved</span>{/if}
+        {#if showOld}
+          <button
+            class="flag flag-grey flag-btn"
+            aria-expanded={showBranches}
+            aria-controls={listId}
+            title="Your team deleted these branches on the server. You can delete your copies."
+            onclick={toggleBranches}
+          >
+            {repo.old_branches.length} old {plural(repo.old_branches.length, "branch", "branches")}
+          </button>
+        {/if}
+        {#if showAhead}
+          <span class="flag flag-grey" title={`You have ${repo.ahead} ${plural(repo.ahead, "change")} the team doesn't have yet`}>Ahead by {repo.ahead}</span>
+        {/if}
+      </div>
+    {/if}
   </div>
 
-  {#if !repo.error && ((hasNews && canUpdate) || !repo.on_main || repo.unsaved || (repo.on_main && repo.ahead > 0))}
-    <div class="chips">
-      {#if hasNews && canUpdate}{@render behindText()}{/if}
-      {#if !repo.on_main}
-        <span class="chip chip-branch">{sideLabel}</span>
-      {/if}
-      {#if repo.on_main && repo.ahead > 0}
-        <span class="chip chip-grey" title={`You have ${repo.ahead} ${plural(repo.ahead, "change")} the team doesn't have yet`}>Ahead by {repo.ahead}</span>
-      {/if}
-      {#if repo.unsaved}
-        <span class="chip chip-amber" title="You edited files that aren't saved as a change yet">Has unsaved changes</span>
-      {/if}
-    </div>
-  {/if}
+  <div class="row-body">
+    {#if expandable && expanded && repo.feed}
+      <div class="feed" id={bodyId}>
+        <FeedList feed={repo.feed} repoPath={repo.path} />
+      </div>
+    {/if}
 
-  {#if canUpdateMain}
-    <p class="hint">Refreshes the main version in the background. Your files stay as they are.</p>
-  {/if}
-
-  {#if showOld}
-    <div class="old-branches">
-      <button
-        class="old-line status-quiet"
-        aria-expanded={showBranches}
-        aria-controls={listId}
-        title="Your team deleted these branches on the server. You can delete your copies."
-        onclick={toggleBranches}
-      >
-        {repo.old_branches.length} old {plural(repo.old_branches.length, "branch", "branches")}
-      </button>
-      {#if showBranches}
-        <div id={listId}>
+    {#if showOld && showBranches}
+      <div id={listId} class="old-branches">
         {#snippet group(title: string, hint: string | null, rows: typeof repo.old_branches)}
           {#if rows.length > 0}
             <div class="old-group" role="group" aria-label={title}>
@@ -413,260 +442,295 @@
             {busy === "cleanup" ? "Deleting…" : pickedRows.length === 0 ? "Delete branches" : `Delete ${pickedRows.length} ${plural(pickedRows.length, "branch", "branches")}`}
           </button>
         </div>
+      </div>
+    {/if}
+
+    <!-- Update preview and confirm -->
+    {#if plan}
+      {@const runnable = plan.kind === "fast_forward" || plan.kind === "combine"}
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        class="prompt-box"
+        class:prompt-amber={plan.set_aside && plan.kind !== "combine"}
+        class:prompt-blue={plan.kind === "combine"}
+        tabindex="-1"
+        role="group"
+        aria-label="Update preview"
+        onkeydown={onPromptKey}
+        use:focusOnMount
+      >
+        {#if plan.kind === "combine"}
+          <p class="prompt-title">Your work and the team's work both changed.</p>
+          <p class="prompt-desc">RepoBell can combine them. If that fails, nothing is changed.</p>
+        {:else if plan.set_aside}
+          <p class="prompt-title">You have unsaved changes.</p>
+          <p class="prompt-desc">Set them aside, update, then bring them back?</p>
+        {/if}
+        <p class="prompt-sub" class:prompt-main={!runnable || plan.kind === "fast_forward"}>{sentence(plan.message)}</p>
+        <div class="prompt-actions">
+          {#if runnable}
+            <button class="btn-text" onclick={closePlan}>Cancel</button>
+            <button class="btn-primary" onclick={confirmUpdate}>
+              {plan.kind === "combine" ? "Update and combine" : plan.set_aside ? "Set aside and update" : "Update"}
+            </button>
+          {:else}
+            <button class="btn-secondary" onclick={closePlan}>OK</button>
+          {/if}
         </div>
-      {/if}
-    </div>
-  {/if}
+      </div>
+    {/if}
 
-  <!-- Update preview and confirm -->
-  {#if plan}
-    {@const runnable = plan.kind === "fast_forward" || plan.kind === "combine"}
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-      class="prompt-box"
-      class:prompt-amber={plan.set_aside && plan.kind !== "combine"}
-      class:prompt-blue={plan.kind === "combine"}
-      tabindex="-1"
-      role="group"
-      aria-label="Update preview"
-      onkeydown={onPromptKey}
-      use:focusOnMount
-    >
-      {#if plan.kind === "combine"}
-        <p class="prompt-title">Your work and the team's work both changed.</p>
-        <p class="prompt-desc">RepoBell can combine them. If that fails, nothing is changed.</p>
-      {:else if plan.set_aside}
-        <p class="prompt-title">You have unsaved changes.</p>
-        <p class="prompt-desc">Set them aside, update, then bring them back?</p>
-      {/if}
-      <p class="prompt-sub" class:prompt-main={!runnable || plan.kind === "fast_forward"}>{sentence(plan.message)}</p>
-      <div class="prompt-actions">
-        {#if runnable}
-          <button class="btn-text" onclick={closePlan}>Cancel</button>
-          <button class="btn-primary" onclick={confirmUpdate}>
-            {plan.kind === "combine" ? "Update and combine" : plan.set_aside ? "Set aside and update" : "Update"}
-          </button>
-        {:else}
-          <button class="btn-secondary" onclick={closePlan}>OK</button>
+    <!-- Edits are in Git's stash: the one case where the user's work needs a developer -->
+    {#if stashAlert}
+      <div class="stash-alert" role="alert">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A12A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4M12 17v.5"></path>
+        </svg>
+        <div class="stash-text">
+          <p>{stashAlert}</p>
+          {#if stashRef}
+            <details class="stash-details">
+              <summary>Details</summary>
+              <p>Git's name for the saved changes: <code>{stashRef}</code></p>
+              {#if stashCommand}<p>To bring them back, run: <code>{stashCommand}</code></p>{/if}
+            </details>
+          {/if}
+        </div>
+        <button class="btn-secondary" onclick={() => (stashAlert = null)}>Close</button>
+      </div>
+    {/if}
+
+    <!-- Conflict -->
+    {#if conflictFiles.length > 0}
+      <div class="conflict-alert" role="alert">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A12A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.5"></path>
+        </svg>
+        <div>
+          <p class="conflict-title">{conflictMessage}</p>
+          <p class="conflict-desc">These files were changed by you and by your team:</p>
+        </div>
+      </div>
+      <ul class="conflict-list">
+        {#each conflictFiles as file}
+          <li class="conflict-item">
+            <span class="file-path">{file}</span>
+            <button class="btn-open-editor" onclick={() => openInEditor(file)}>Open in editor</button>
+          </li>
+        {/each}
+      </ul>
+      {#if fileError}<p class="msg-error" role="alert">{fileError}</p>{/if}
+      <div class="conflict-footer">
+        <button class="btn-secondary" onclick={() => (conflictFiles = [])}>Close</button>
+      </div>
+    {/if}
+
+    <!-- Undo (the backend says when it is still possible) -->
+    {#if repo.can_undo}
+      <div class="undo-banner" role="status">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12l5 5 9-10"></path>
+        </svg>
+        <p class="undo-text">{notice?.kind === "success" && noticeFrom === "update" ? notice.text : "RepoBell updated this repo. You can undo it."}</p>
+        <button class="btn-undo" disabled={busy !== ""} onclick={handleUndo}>{busy === "undo" ? "Undoing…" : "Undo"}</button>
+      </div>
+    {/if}
+
+    <!-- Undo for branch cleanup -->
+    {#if repo.can_undo_cleanup}
+      <div class="undo-banner" role="status">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12l5 5 9-10"></path>
+        </svg>
+        <p class="undo-text">{notice?.kind === "success" && noticeFrom === "cleanup" ? notice.text : "RepoBell deleted branches here. You can undo it."}</p>
+        <button class="btn-undo" aria-label="Undo branch delete" disabled={busy !== ""} onclick={handleUndoCleanup}>{busy === "cleanup-undo" ? "Undoing…" : "Undo"}</button>
+      </div>
+    {/if}
+
+    {#if notice && !(notice.kind === "success" && ((repo.can_undo && noticeFrom === "update") || (repo.can_undo_cleanup && noticeFrom === "cleanup")))}
+      <div class={`notice notice-${notice.kind}`} role={notice.kind === "error" || notice.kind === "warn" ? "alert" : "status"}>
+        <p>{notice.text}</p>
+        {#if mainDetail}
+          <button class="link-btn" aria-expanded={showDetail} onclick={() => (showDetail = !showDetail)}>Details</button>
+          {#if showDetail}<pre class="detail">{mainDetail}</pre>{/if}
         {/if}
       </div>
-    </div>
-  {/if}
+    {/if}
 
-  <!-- Edits are in Git's stash: the one case where the user's work needs a developer -->
-  {#if stashAlert}
-    <div class="stash-alert" role="alert">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A12A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4M12 17v.5"></path>
-      </svg>
-      <div class="stash-text">
-        <p>{stashAlert}</p>
-        {#if stashRef}
-          <details class="stash-details">
-            <summary>Details</summary>
-            <p>Git's name for the saved changes: <code>{stashRef}</code></p>
-            {#if stashCommand}<p>To bring them back, run: <code>{stashCommand}</code></p>{/if}
-          </details>
-        {/if}
-      </div>
-      <button class="btn-secondary" onclick={() => (stashAlert = null)}>Close</button>
-    </div>
-  {/if}
-
-  <!-- Conflict -->
-  {#if conflictFiles.length > 0}
-    <div class="conflict-alert" role="alert">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A12A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.5"></path>
-      </svg>
-      <div>
-        <p class="conflict-title">{conflictMessage}</p>
-        <p class="conflict-desc">These files were changed by you and by your team:</p>
-      </div>
-    </div>
-    <ul class="conflict-list">
-      {#each conflictFiles as file}
-        <li class="conflict-item">
-          <span class="file-path">{file}</span>
-          <button class="btn-open-editor" onclick={() => openInEditor(file)}>Open in editor</button>
-        </li>
-      {/each}
-    </ul>
-    {#if fileError}<p class="msg-error" role="alert">{fileError}</p>{/if}
-    <div class="conflict-footer">
-      <button class="btn-secondary" onclick={() => (conflictFiles = [])}>Close</button>
-    </div>
-  {/if}
-
-  <!-- Undo (the backend says when it is still possible) -->
-  {#if repo.can_undo}
-    <div class="undo-banner" role="status">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M5 12l5 5 9-10"></path>
-      </svg>
-      <p class="undo-text">{notice?.kind === "success" && noticeFrom === "update" ? notice.text : "RepoBell updated this repo. You can undo it."}</p>
-      <button class="btn-undo" disabled={busy !== ""} onclick={handleUndo}>{busy === "undo" ? "Undoing…" : "Undo"}</button>
-    </div>
-  {/if}
-
-  <!-- Undo for branch cleanup -->
-  {#if repo.can_undo_cleanup}
-    <div class="undo-banner" role="status">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E6B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M5 12l5 5 9-10"></path>
-      </svg>
-      <p class="undo-text">{notice?.kind === "success" && noticeFrom === "cleanup" ? notice.text : "RepoBell deleted branches here. You can undo it."}</p>
-      <button class="btn-undo" aria-label="Undo branch delete" disabled={busy !== ""} onclick={handleUndoCleanup}>{busy === "cleanup-undo" ? "Undoing…" : "Undo"}</button>
-    </div>
-  {/if}
-
-  {#if notice && !(notice.kind === "success" && ((repo.can_undo && noticeFrom === "update") || (repo.can_undo_cleanup && noticeFrom === "cleanup")))}
-    <div class={`notice notice-${notice.kind}`} role={notice.kind === "error" || notice.kind === "warn" ? "alert" : "status"}>
-      <p>{notice.text}</p>
-      {#if mainDetail}
-        <button class="link-btn" aria-expanded={showDetail} onclick={() => (showDetail = !showDetail)}>Details</button>
-        {#if showDetail}<pre class="detail">{mainDetail}</pre>{/if}
-      {/if}
-    </div>
-  {/if}
-
-  <!-- Feed -->
-  {#if expandable && expanded && repo.feed}
-    <div class="card-body" id={bodyId}>
-      <FeedList feed={repo.feed} repoPath={repo.path} />
-    </div>
-  {/if}
-
-  <!-- Error -->
-  {#if repo.error}
-    <p class="err-text">{repo.error}</p>
     {#if actionError}<p class="msg-error" role="alert">{actionError}</p>{/if}
-    <div class="err-actions">
-      {#if stopped}
-        <button class="btn-secondary" disabled={busy === "remove" || !onStopWatching} title="Stop watching this repo. Your files aren't touched." onclick={handleRemove}>
-          {busy === "remove" ? "Removing…" : "Remove"}
-        </button>
-      {:else}
-        <button class="btn-outline" disabled={checking} onclick={handleTryAgain}>
-          {checking ? "Checking…" : "Try again"}
-        </button>
-      {/if}
-    </div>
-  {/if}
-</article>
+  </div>
+</li>
 
 <style>
-  .repo-card {
-    background: #ffffff;
-    border: 1px solid #e3e3e0;
-    border-radius: 10px;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.3s ease;
+  .row {
+    border-top: 1px solid #e3e3e0;
+    transition: background 0.15s ease, box-shadow 0.3s ease;
   }
-  .repo-card.compact {
-    padding: 8px 14px;
-    gap: 6px;
+  .row:first-child {
+    border-top: none;
   }
-  .repo-card.highlight {
-    border-color: #1f5fd1;
-    box-shadow: 0 0 0 3px rgba(31, 95, 209, 0.25);
+  .row.open {
+    background: #fbfbf9;
+  }
+  .row.highlight {
     background: #f4f8fe;
+    box-shadow: inset 0 0 0 2px #1f5fd1;
   }
-  .conflict-card {
-    border: 1.5px solid #c4372b;
+  .row.alert-ring {
+    box-shadow: inset 0 0 0 1.5px #c4372b;
   }
-  .card-header {
-    display: flex;
+  /* Line 1 and line 2. The toggle's ::after covers this whole box, so a click anywhere on it toggles the row. */
+  .row-head {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 2px;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    min-height: 40px;
+    padding: 9px 12px;
   }
-  .title-group {
+  .row.can-open .row-head:hover {
+    background: #fbfbf9;
+  }
+  .title {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1;
     min-width: 0;
-  }
-  .repo-title {
     margin: 0;
-    flex: 1;
-    min-width: 0;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
   }
-  .disclosure {
+  .title.indent {
+    padding-left: 22px;
+  }
+  .toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
-    width: 100%;
-    min-height: 36px;
-    margin: 0 0 0 -6px;
-    padding: 0 8px 0 6px;
-    box-sizing: border-box;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
     border: none;
-    border-radius: 6px;
     background: transparent;
     color: inherit;
     font: inherit;
     text-align: left;
     cursor: pointer;
   }
-  .disclosure:hover {
-    background: #f3f3f1;
+  .toggle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+  .toggle:focus-visible {
+    outline: none;
+  }
+  .toggle:focus-visible::after {
+    outline: 2px solid #1f5fd1;
+    outline-offset: -2px;
   }
   .name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    position: relative;
+    z-index: 1;
   }
-  .plain-name {
-    display: block;
-  }
-  .drawer-chevron {
+  .chevron {
     flex-shrink: 0;
     color: #5b5b66;
     transition: transform 0.2s ease;
   }
-  .drawer-chevron.open {
+  .chevron.open {
     transform: rotate(90deg);
   }
-  .action-group {
+  .badge {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #1f5fd1;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .side {
+    grid-column: 2;
+    grid-row: 1;
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-shrink: 0;
   }
-  .status-behind {
-    font-size: 13px;
-    white-space: nowrap;
+  .side.two {
+    grid-row: 1 / span 2;
+  }
+  .when {
+    position: relative;
+    z-index: 1;
+    font-size: 12px;
     color: #5b5b66;
+    font-variant-numeric: tabular-nums;
+  }
+  .l2 {
+    grid-column: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 6px;
+    min-width: 0;
+    padding-left: 22px;
+    font-size: 13px;
+    color: #5b5b66;
+  }
+  .l2-text {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .l2-text.titled {
+    position: relative;
+    z-index: 1;
     cursor: help;
   }
-  .status-quiet {
-    font-size: 13px;
-    color: #5b5b66;
+  .l2-text.error-text {
+    color: #3d3d45;
+  }
+  .flag {
+    position: relative;
+    z-index: 1;
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
     white-space: nowrap;
+    cursor: default;
+  }
+  .flag-grey {
+    background: #eeeeec;
+    color: #3d3d45;
+  }
+  .flag-amber {
+    background: #fceedd;
+    color: #84470c;
+  }
+  .flag-btn {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .flag-btn:hover {
+    background: #e3e3e0;
   }
   .btn-update {
-    height: 40px;
-    padding: 0 16px;
     border: 1px solid #1f5fd1;
     border-radius: 8px;
     background: #ffffff;
     color: #1f5fd1;
-    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    flex-shrink: 0;
-  }
-  .compact .btn-update {
-    height: 36px;
   }
   .btn-update:hover:not(:disabled) {
     background: #f0f5fd;
@@ -675,43 +739,20 @@
     opacity: 0.6;
     cursor: default;
   }
-  .badge {
-    font-size: 12px;
+  .btn-main {
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #1f5fd1;
     font-weight: 500;
-    padding: 3px 9px;
-    border-radius: 6px;
-    flex-shrink: 0;
-    white-space: nowrap;
+    cursor: pointer;
   }
-  .badge-new {
-    background: #1f5fd1;
-    color: #ffffff;
+  .btn-main:hover:not(:disabled) {
+    background: #f0f5fd;
   }
-  .badge-err {
-    background: #fbe7e5;
-    color: #a12a20;
-  }
-  .chips {
-    display: flex;
-    align-items: center;
-    gap: 6px 10px;
-    flex-wrap: wrap;
-  }
-  .chip {
-    font-size: 12px;
-    font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 6px;
+  .btn-main:disabled {
+    opacity: 0.6;
     cursor: default;
-  }
-  .chip-grey,
-  .chip-branch {
-    background: #eeeeec;
-    color: #45454d;
-  }
-  .chip-amber {
-    background: #fceedd;
-    color: #84470c;
   }
   .hint {
     margin: -4px 0 0;
@@ -719,20 +760,22 @@
     line-height: 1.4;
     color: #5b5b66;
   }
+  .row-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 12px;
+  }
+  .row-body > :global(:last-child) {
+    margin-bottom: 10px;
+  }
+  .feed {
+    padding-left: 22px;
+  }
   .old-branches {
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-  .old-line {
-    align-self: flex-start;
-    min-height: 32px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    font-family: inherit;
-    text-decoration: underline;
-    cursor: pointer;
   }
   .old-group {
     display: flex;
@@ -768,11 +811,6 @@
   .old-actions {
     display: flex;
     justify-content: flex-end;
-  }
-  .card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
   }
   .prompt-box {
     display: flex;
@@ -1046,24 +1084,25 @@
     overflow-wrap: anywhere;
     user-select: text;
   }
-  .err-text {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.4;
-    color: #3d3d45;
-  }
   .msg-error {
     margin: 0;
     font-size: 13px;
     color: #a12a20;
   }
-  .err-actions {
-    display: flex;
-    justify-content: flex-end;
+  /* Row buttons are 32px, below the 36px minimum: the whole-row hit area makes up for it. */
+  .row-act {
+    position: relative;
+    z-index: 1;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .btn-main.row-act {
+    padding: 0 8px;
   }
   @media (prefers-reduced-motion: reduce) {
-    .repo-card,
-    .drawer-chevron {
+    .row,
+    .chevron {
       transition: none;
     }
   }
