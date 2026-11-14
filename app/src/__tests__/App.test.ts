@@ -331,28 +331,29 @@ describe("App", () => {
     });
 
     it("keeps a running action's result when the page switches from All quiet to the news view", async () => {
-      const msg = "Updated, but your unsaved changes were put aside safely. Ask a developer to bring them back.";
-      const rowA = () => makeRepo({ path: `${P}/a`, name: "a", behind: 2, unsaved: true });
+      const merged = { name: "old-one", sha: "aaa111", merged: true, last_commit_time: 1_700_000_000 };
+      const rowA = () => makeRepo({ path: `${P}/a`, name: "a", old_branches: [merged] });
       let finish: (v: unknown) => void = () => {};
       mockIPC(
         (cmd) => {
           if (cmd === "get_app_state") return makeState({ repos: [rowA()] });
-          if (cmd === "preview_update")
-            return { kind: "fast_forward", downloads: 2, yours: 0, set_aside: true, message: "This will download 2 changes. Your unsaved changes are set aside and put back" };
-          if (cmd === "update_repo") return new Promise((r) => (finish = r));
+          if (cmd === "delete_old_branches") return new Promise((r) => (finish = r));
         },
         { shouldMockEvents: true },
       );
       render(App);
-      await screen.findByText("All quiet");
-      await fireEvent.click(await screen.findByRole("button", { name: "Update" }));
-      await fireEvent.click(await screen.findByRole("button", { name: "Set aside and update" }));
-      expect(await screen.findByRole("button", { name: "Updating…" })).toBeDisabled();
+      // every repo is plain, so the page shows the centered All quiet
+      expect(await screen.findByRole("heading", { level: 1, name: "All quiet" })).toBeInTheDocument();
+      await fireEvent.click(await screen.findByRole("button", { name: /Up to date 1 repo/ }));
+      await fireEvent.click(await screen.findByRole("button", { name: /1 old branch/ }));
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      expect(await screen.findByRole("button", { name: "Deleting…" })).toBeDisabled();
+      // another repo gains news: the page switches to the news view
       await emit("state-updated", makeState({ repos: [rowA(), newsRepo({ path: `${P}/b`, name: "b" })] }));
       await screen.findByRole("heading", { level: 2, name: /^News/ });
-      expect(screen.getByRole("button", { name: "Updating…" })).toBeDisabled();
-      finish({ status: "edits_in_stash", message: msg, downloads: 2, conflict_files: [], plan: null, stash: "stash@{0}", stash_command: "git stash pop" });
-      expect(await screen.findByText(msg)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Deleting…" })).toBeDisabled();
+      finish({ status: "failed", message: "Couldn't delete the branch.", detail: null });
+      expect(await screen.findByText("Couldn't delete the branch.")).toBeInTheDocument();
     });
 
     it("forgets a row's old notice when its repo is stopped and later comes back", async () => {

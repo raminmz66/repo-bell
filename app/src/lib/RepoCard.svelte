@@ -709,6 +709,8 @@
     column-gap: 4px;
   }
   .br {
+    position: relative;
+    z-index: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

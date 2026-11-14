@@ -60,7 +60,6 @@ RepoBell is an ambient desktop tray application for Linux (Ubuntu 22.04+) built 
   ```rust
   pub struct FeedSummary {
       pub total_changes: usize,
-      pub author_summary: String, // e.g. "Sara added 4 changes to the main version"
       pub newest_time: Option<u64>,
       pub changes: Vec<ChangeItem>,
       pub files_changed: Vec<String>,
