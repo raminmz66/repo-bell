@@ -30,7 +30,8 @@
 {#if shown.length > 0}
   <ul class="change-list">
     {#each shown as change}
-      <li class="change-item">{prefixed ? `${authorOf(change)}: ${change.title}` : change.title}</li>
+      {@const text = prefixed ? `${authorOf(change)}: ${change.title}` : change.title}
+      <li class="change-item" title={text}><span class="change-text">{text}</span></li>
     {/each}
   </ul>
 {/if}
@@ -82,8 +83,12 @@
     line-height: 1.5;
     color: #3d3d45;
   }
-  .change-item {
-    overflow-wrap: anywhere;
+  /* The bullet sits outside the li, so the cut-off goes on the inner span. */
+  .change-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .feed-meta {
     display: flex;

@@ -238,6 +238,19 @@ describe("RepoCard", () => {
       expect(titles).toEqual(["Sara: Newest", "Ali: Middle", "Sara: Oldest"]);
     });
 
+    it("shows each title on one line with the full title on hover", () => {
+      const t = Math.floor(Date.now() / 1000) - 100;
+      const changes = [
+        { author: "Sara", title: "A very long title that would otherwise wrap onto a second line", sha: "1", timestamp: t, mine: false },
+        { author: "Ali", title: "Short", sha: "2", timestamp: t - 5, mine: false },
+      ];
+      const { container } = render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 2, changes }) }), expanded: true });
+      const items = [...container.querySelectorAll(".change-item")];
+      expect(items).toHaveLength(2);
+      for (const li of items) expect(li).toHaveAttribute("title", li.textContent);
+      expect(items[0]).toHaveAttribute("title", "Sara: A very long title that would otherwise wrap onto a second line");
+    });
+
     it("puts a dot between 'N more' and the files toggle only when both show", () => {
       const t = Math.floor(Date.now() / 1000) - 100;
       const changes = ["One", "Two", "Three"].map((title, i) => ({ author: "Sara", title, sha: `a${i}`, timestamp: t - i, mine: false }));
