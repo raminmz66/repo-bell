@@ -29,7 +29,6 @@ export function makeFeed(overrides: Partial<FeedSummary> = {}): FeedSummary {
   const t = Math.floor(Date.now() / 1000) - 300;
   return {
     total_changes: 2,
-    author_summary: "Alex added 2 changes to the main version",
     newest_time: t,
     changes: [
       { author: "Alex", title: "Fix login timeout", sha: "abc1234567890", timestamp: t, mine: false },

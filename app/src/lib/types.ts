@@ -20,7 +20,6 @@ export interface ChangeView {
 
 export interface FeedSummary {
   total_changes: number;
-  author_summary: string;
   newest_time: number | null;
   changes: ChangeView[];
   files_changed: string[];

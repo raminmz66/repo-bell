@@ -73,8 +73,9 @@
   const tickKey = (b: { name: string; sha: string }) => `${b.name}@${b.sha}`;
   let noticeFrom: "update" | "cleanup" = saved?.noticeFrom ?? "update";
 
-  $: listId = `old-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
-  $: bodyId = `body-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
+  $: slug = repo.path.replace(/[^a-zA-Z0-9]/g, "-");
+  $: listId = `old-${slug}`;
+  $: bodyId = `body-${slug}`;
   $: hasNews = !repo.error && repo.new_count > 0;
   $: expandable = !repo.error && repo.feed !== null;
   $: stopped = repo.error_kind === "folder_missing" || repo.error_kind === "not_a_repo";
@@ -584,13 +585,16 @@
   .row.open {
     background: #fbfbf9;
   }
-  .row.can-open:hover {
+  /* Only lines 1 and 2 react to the pointer. The fill stays on the row, so the inset rings still win. */
+  .row.can-open:has(.row-head:hover) {
     background: #fbfbf9;
   }
-  .row.highlight,
-  .row.can-open.highlight:hover {
+  .row.highlight {
     background: #f4f8fe;
     box-shadow: inset 0 0 0 2px #1f5fd1;
+  }
+  .row.can-open.highlight:has(.row-head:hover) {
+    background: #f4f8fe;
   }
   .row.alert-ring {
     box-shadow: inset 0 0 0 1.5px #c4372b;

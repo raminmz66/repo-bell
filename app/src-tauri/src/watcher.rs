@@ -36,7 +36,6 @@ pub struct ChangeView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedSummary {
     pub total_changes: usize,
-    pub author_summary: String,
     pub newest_time: Option<i64>,
     pub changes: Vec<ChangeView>,
     pub files_changed: Vec<String>,
@@ -491,21 +490,8 @@ fn fill_feed(v: &mut RepoCardView, f: repobell_core::Feed) {
         .collect();
     v.teammate = changes.iter().filter(|c| !c.mine).cloned().collect();
     v.new_count = news::count_new(v.teammate.len(), changes.len(), f.total);
-    let plural = if f.total == 1 { "" } else { "s" };
-    let author_summary = match changes.first() {
-        Some(first) => {
-            let who = if first.mine {
-                "You"
-            } else {
-                first.author.as_str()
-            };
-            format!("{who} added {} change{plural} to the main version", f.total)
-        }
-        None => format!("{} change{plural} on the main version", f.total),
-    };
     v.feed = Some(FeedSummary {
         total_changes: f.total,
-        author_summary,
         newest_time: changes.first().map(|c| c.timestamp),
         files_changed: f.files_changed,
         changes: changes.into_iter().take(SHOWN_CHANGES).collect(),

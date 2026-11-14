@@ -1,6 +1,6 @@
 # Grouped rows design
 
-Date: 2026-11-14. Status: draft, waiting for Ramin's approval.
+Date: 2026-11-14. Status: approved by Ramin on 2026-11-14.
 
 Visual target: option "A Grouped rows" and Q3 option "2 Open when 2 or fewer" in the approved mockup `layout-options.html` (job 3589d629). Where this spec and the mockup differ, the spec wins (see "Where the mockup differs").
 
@@ -250,7 +250,7 @@ Existing tests that change:
   - Feed tests that read titles pass `expanded: true`.
 - Footer.test.ts: the two Mark all as seen tests go; the Add folder test drops the extra props.
 - feedGrouping.test.ts: deleted with `feedGrouping.ts`.
-- `test-helpers.ts`: unchanged (`author_summary` stays in the type; the UI just doesn't show it).
+- `test-helpers.ts`: drops the unused `author_summary` field.
 - Unchanged: Header, SettingsView, WelcomeView, no-alert.
 
 Before finishing, the builder checks the result at the real 420×640 window with a screenshot against the Goals.

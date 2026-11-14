@@ -89,19 +89,13 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
+    gap: 6px;
     font-size: 13px;
     line-height: 1.5;
     color: #5b5b66;
   }
   .more {
     padding-left: 18px;
-  }
-  /* Flex items drop the spaces around the dot, so the gap comes from margins. */
-  .dot {
-    margin: 0 0 0 6px;
-  }
-  .dot + .btn-files-toggle {
-    margin-left: 0;
   }
   .btn-files-toggle {
     align-self: flex-start;

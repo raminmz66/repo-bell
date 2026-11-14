@@ -14,7 +14,7 @@ function newsState() {
     news_changes: 5,
     error_repos: 1,
     repos: [
-      makeRepo({ path: `${P}/web-app`, name: "web-app", behind: 4, new_count: 3, feed: makeFeed({ author_summary: "Sara added 3 changes to the main version" }) }),
+      makeRepo({ path: `${P}/web-app`, name: "web-app", behind: 4, new_count: 3, feed: makeFeed() }),
       makeRepo({ path: `${P}/api`, name: "api", behind: 2, new_count: 2, feed: makeFeed() }),
       makeRepo({ path: `${P}/docs`, name: "docs", error: "Git can't log in to the server. Your login may have expired.", error_kind: "login" }),
       makeRepo({ path: `${P}/quiet-one`, name: "quiet-one" }),
