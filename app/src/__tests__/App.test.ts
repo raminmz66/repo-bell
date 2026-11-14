@@ -203,7 +203,7 @@ describe("App", () => {
   });
 
   describe("groups", () => {
-    const hint = "Update main refreshes main in the background. Your files stay as they are.";
+    const hint = "Update main refreshes main. Your files stay as they are.";
     const newsRepo = (o = {}) => makeRepo({ path: `${P}/web-app`, name: "web-app", behind: 2, new_count: 2, feed: makeFeed(), ...o });
 
     it("renders groups in order with counts", async () => {
@@ -247,6 +247,23 @@ describe("App", () => {
       render(App);
       await screen.findByRole("heading", { level: 2, name: /^On a branch/ });
       expect(screen.getAllByText(hint)).toHaveLength(1);
+    });
+
+    it("sorts On a branch: behind main first, then unsaved, then the rest", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state")
+          return makeState({
+            repos: [
+              makeRepo({ path: `${P}/quiet`, name: "quiet", on_main: false, branch: "x" }),
+              makeRepo({ path: `${P}/behind`, name: "behind", on_main: false, branch: "y", main_behind: 2 }),
+              makeRepo({ path: `${P}/unsaved`, name: "unsaved", on_main: false, branch: "z", unsaved: true }),
+            ],
+          });
+      });
+      render(App);
+      const section = (await screen.findByRole("heading", { level: 2, name: /^On a branch/ })).closest("section")!;
+      const names = [...section.querySelectorAll("h3")].map((h) => h.textContent!.trim());
+      expect(names).toEqual(["behind", "unsaved", "quiet"]);
     });
 
     it("subline says when it last checked", async () => {
@@ -429,7 +446,8 @@ describe("App", () => {
       });
       render(App);
       expect(await screen.findByRole("button", { name: "Update main" })).toBeInTheDocument();
-      expect(screen.getByText("feature-x · main 2 behind")).toBeInTheDocument();
+      expect(screen.getByText("feature-x")).toBeInTheDocument();
+      expect(screen.getByText("· main 2 behind")).toBeInTheDocument();
       expect(screen.getByText(/Nothing new in your 2 repos/)).toBeInTheDocument();
     });
   });

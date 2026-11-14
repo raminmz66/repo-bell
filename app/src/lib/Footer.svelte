@@ -13,7 +13,7 @@
 
 <style>
   .app-footer {
-    height: 64px;
+    height: 52px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -25,7 +25,7 @@
     user-select: none;
   }
   .btn-add-folder {
-    height: 40px;
+    height: 36px;
     display: flex;
     align-items: center;
     gap: 6px;

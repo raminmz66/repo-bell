@@ -613,7 +613,7 @@ describe("RepoCard", () => {
 
     it("names the branch and offers Update main instead of Update", () => {
       render(RepoCard, { repo: side() });
-      expect(screen.getByText("feature-x · main 3 behind")).toBeInTheDocument();
+      expect(screen.getByText("· main 3 behind")).toBeInTheDocument();
       const hint = "Refreshes main in the background. Your files stay as they are.";
       expect(screen.getByRole("button", { name: "Update main" })).toHaveAttribute("title", hint);
       expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
@@ -623,10 +623,26 @@ describe("RepoCard", () => {
       expect(screen.queryByText(/Ahead by/)).not.toBeInTheDocument();
     });
 
+    it("cuts only the branch name: it has the full name on hover and the status sits in its own element", () => {
+      render(RepoCard, { repo: makeRepo({ on_main: false, branch: "feature/a-very-long-branch-name", main_behind: 2 }) });
+      const br = screen.getByText("feature/a-very-long-branch-name");
+      expect(br).toHaveAttribute("title", "feature/a-very-long-branch-name");
+      expect(br).toHaveClass("br");
+      const st = screen.getByText("· main 2 behind");
+      expect(st).toHaveClass("st");
+      expect(st).not.toBe(br);
+      expect(br.parentElement).toBe(st.parentElement);
+    });
+
+    it("a plain side-branch row has no branch flag", () => {
+      const { container } = render(RepoCard, { repo: makeRepo({ on_main: false, branch: "feature-x", main_behind: 2 }) });
+      expect(container.querySelector(".flag-branch")).toBeNull();
+    });
+
     it("shows a quiet note instead of the button when main has nothing new", () => {
       render(RepoCard, { repo: makeRepo({ on_main: false, branch: "feature-x", main_behind: 0 }) });
       expect(screen.queryByRole("button", { name: "Update main" })).not.toBeInTheDocument();
-      expect(screen.getByText("feature-x · main up to date")).toBeInTheDocument();
+      expect(screen.getByText("· main up to date")).toBeInTheDocument();
     });
 
     it("asks the window to refresh after Update main", async () => {
@@ -641,14 +657,15 @@ describe("RepoCard", () => {
 
     it("says so when HEAD isn't on a branch", () => {
       render(RepoCard, { repo: makeRepo({ on_main: false, branch: null, main_behind: 3 }) });
-      expect(screen.getByText("Not on a branch · main 3 behind")).toBeInTheDocument();
+      expect(screen.getByText("Not on a branch")).toBeInTheDocument();
+      expect(screen.getByText("· main 3 behind")).toBeInTheDocument();
     });
 
     it("news row on a side branch", () => {
       render(RepoCard, { repo: newsRepo({ on_main: false, branch: "feature-x", main_behind: 2 }) });
       expect(screen.getByRole("button", { name: "Update main" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
-      expect(screen.getByText("feature-x")).toBeInTheDocument();
+      expect(screen.getByText("feature-x")).toHaveAttribute("title", "feature-x");
       expect(screen.getByText(/^Alex · 2 files$/)).toBeInTheDocument();
     });
 

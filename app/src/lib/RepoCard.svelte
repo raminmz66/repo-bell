@@ -109,7 +109,10 @@
         ? repo.behind > 0
           ? { text: `Behind by ${repo.behind}`, title: `The team made ${repo.behind} ${plural(repo.behind, "change")} you don't have yet` }
           : { text: "", title: undefined }
-        : { text: `${branchName} · main ${repo.main_behind > 0 ? `${repo.main_behind} behind` : "up to date"}`, title: undefined };
+        : { text: branchName, title: undefined };
+  // A plain side-branch row: the branch name may be cut, the main status never is.
+  $: branchLine = !repo.error && !hasNews && !repo.on_main;
+  $: mainStatus = repo.main_behind > 0 ? `${repo.main_behind} behind` : "up to date";
   $: hasLine2 = line2.text !== "" || showBranchFlag || showUnsaved || showOld || showAhead;
   $: showOld = !repo.error && repo.old_branches.length > 0;
   $: mergedRows = repo.old_branches.filter((b) => b.merged);
@@ -388,12 +391,14 @@
     </div>
 
     {#if hasLine2}
-      <div class="l2">
-        {#if line2.text}
+      <div class="l2" class:branch={branchLine}>
+        {#if branchLine}
+          <span class="br" title={branchName}>{branchName}</span><span class="st">{` · main ${mainStatus}`}</span>
+        {:else if line2.text}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <span class="l2-text" class:error-text={repo.error} class:titled={line2.title} title={line2.title} onclick={line2.title && expandable ? onToggle : undefined}>{line2.text}</span>
         {/if}
-        {#if showBranchFlag}<span class="flag flag-grey flag-branch">{branchName}</span>{/if}
+        {#if showBranchFlag}<span class="flag flag-grey flag-branch" title={branchName}>{branchName}</span>{/if}
         {#if showUnsaved}<span class="flag flag-amber" title="You edited files that aren't saved as a change yet">Unsaved</span>{/if}
         {#if showOld}
           <button
@@ -694,6 +699,22 @@
     font-size: 13px;
     color: #5b5b66;
   }
+  /* A plain side-branch row stays on one line: only the branch name gives way. */
+  .l2.branch {
+    flex-wrap: nowrap;
+    column-gap: 4px;
+  }
+  .br {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st,
+  .l2.branch .flag {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
   .l2-text {
     max-width: 100%;
     overflow-wrap: anywhere;
@@ -722,8 +743,9 @@
   }
   .flag-branch {
     max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .flag-amber {
     background: #fceedd;

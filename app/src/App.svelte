@@ -203,7 +203,9 @@
   $: watched = state?.repos.filter((r) => !r.ignored) ?? [];
   $: errorRepos = watched.filter((r) => groupOf(r, pinned, alertPaths) === "error");
   $: newsRepos = watched.filter((r) => groupOf(r, pinned, alertPaths) === "news");
-  $: onBranch = watched.filter((r) => groupOf(r, pinned, alertPaths) === "onBranch");
+  // Rows that need Update main first, then rows with unsaved edits. The sort is stable.
+  const branchTier = (r: RepoCardView) => (r.main_behind > 0 ? 0 : r.unsaved ? 1 : 2);
+  $: onBranch = watched.filter((r) => groupOf(r, pinned, alertPaths) === "onBranch").sort((a, b) => branchTier(a) - branchTier(b));
   $: upToDate = watched.filter((r) => groupOf(r, pinned, alertPaths) === "upToDate");
   $: onMain = watched.filter((r) => groupOf(r, pinned, alertPaths) === "onMain");
   $: syncNews(newsRepos);
@@ -267,7 +269,7 @@
 
 {#snippet quietGroups()}
   {@render group("On main", onMain)}
-  {@render group("On a branch", onBranch, { hint: "Update main refreshes main in the background. Your files stay as they are." })}
+  {@render group("On a branch", onBranch, { hint: "Update main refreshes main. Your files stay as they are." })}
   {#if upToDate.length > 0}
     <button class="accordion-btn" onclick={() => (showUpToDate = !showUpToDate)} aria-expanded={showUpToDate}>
       <svg class="chevron" class:open={showUpToDate} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
