@@ -137,8 +137,8 @@
 
   async function reveal() {
     await tick();
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    rootEl?.scrollIntoView?.({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    // WebKitGTK ignores smooth scrollIntoView, so the tray jump never scrolled.
+    rootEl?.scrollIntoView?.({ block: "center", behavior: "auto" });
   }
 
   // Puts focus back on the Update button once the preview is gone, so keyboard users keep their place.

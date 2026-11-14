@@ -166,7 +166,7 @@ describe("RepoCard", () => {
       const { rerender, container } = render(RepoCard, { repo: makeRepo({ feed: makeFeed() }), highlight: false });
       expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "false");
       await rerender({ highlight: true });
-      await waitFor(() => expect(scroll).toHaveBeenCalled());
+      await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
       expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "false");
       expect(container.querySelector(".row")).toHaveClass("highlight");
     });
