@@ -1,12 +1,10 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import type { FeedSummary } from "./types";
-  import { groupChangesByPersonAndDay } from "./feedGrouping";
-  import { timeAgo, errText, plural } from "./util";
+  import type { ChangeView, FeedSummary } from "./types";
+  import { errText, plural } from "./util";
 
   export let feed: FeedSummary;
   export let repoPath: string;
-  export let now: number = Date.now();
 
   const MAX_TITLES = 3;
 
@@ -15,9 +13,9 @@
 
   $: shown = [...feed.changes].sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_TITLES);
   $: more = Math.max(0, feed.total_changes - shown.length);
-  $: groups = groupChangesByPersonAndDay(shown);
-  // One person on one day reads best as a plain list; the summary line already names them.
-  $: grouped = groups.length > 1 || (groups[0]?.authors.length ?? 0) > 1;
+  const authorOf = (c: ChangeView) => (c.mine ? "You" : c.author);
+  // One author reads best as plain titles; several need a name in front.
+  $: prefixed = new Set(shown.map(authorOf)).size > 1;
 
   async function openFile(file: string) {
     fileError = null;
@@ -29,55 +27,30 @@
   }
 </script>
 
-<p class="feed-summary">
-  {feed.author_summary}
-  {#if feed.newest_time}
-    <span class="feed-time">· {timeAgo(feed.newest_time, now)}</span>
-  {/if}
-</p>
-
 {#if shown.length > 0}
-  <div class="feed-groups" class:flat={!grouped}>
-    {#each groups as day}
-      <div class="day-group">
-        {#if grouped}<span class="day-badge">{day.dayLabel}</span>{/if}
-        <div class="day-content" class:day-border={grouped}>
-          {#each day.authors as authorGroup}
-            <div class="author-block">
-              {#if grouped}
-                <div class="author-line">
-                  <span class="author-name" class:author-mine={authorGroup.mine}>
-                    {authorGroup.mine ? "You" : authorGroup.author}
-                  </span>
-                  <span class="author-count">
-                    {authorGroup.changes.length} {plural(authorGroup.changes.length, "change")}
-                  </span>
-                </div>
-              {/if}
-              <ul class="change-list">
-                {#each authorGroup.changes as change}
-                  <li class="change-item">{change.title}</li>
-                {/each}
-              </ul>
-            </div>
-          {/each}
-        </div>
-      </div>
+  <ul class="change-list">
+    {#each shown as change}
+      <li class="change-item">{prefixed ? `${authorOf(change)}: ${change.title}` : change.title}</li>
     {/each}
-    {#if more > 0}
-      <p class="more">and {more} more</p>
+  </ul>
+{/if}
+
+{#if more > 0 || feed.files_changed.length > 0}
+  <div class="feed-meta">
+    {#if more > 0}<span class="more">{more} more</span>{/if}
+    {#if more > 0 && feed.files_changed.length > 0}{" · "}{/if}
+    {#if feed.files_changed.length > 0}
+      <button class="btn-files-toggle" onclick={() => (showFiles = !showFiles)} aria-expanded={showFiles}>
+        <svg class="chevron" class:open={showFiles} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 6l6 6-6 6"></path>
+        </svg>
+        {feed.files_changed.length} {plural(feed.files_changed.length, "file")} changed
+      </button>
     {/if}
   </div>
 {/if}
 
 {#if feed.files_changed.length > 0}
-  <button class="btn-files-toggle" onclick={() => (showFiles = !showFiles)} aria-expanded={showFiles}>
-    <svg class="chevron" class:open={showFiles} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M9 6l6 6-6 6"></path>
-    </svg>
-    {feed.files_changed.length} {plural(feed.files_changed.length, "file")} changed
-  </button>
-
   {#if showFiles}
     <ul class="files-box">
       {#each feed.files_changed as f}
@@ -99,62 +72,6 @@
 {/if}
 
 <style>
-  .feed-summary {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.4;
-  }
-  .feed-time {
-    color: #5b5b66;
-  }
-  .feed-groups {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .day-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .day-badge {
-    font-size: 12px;
-    font-weight: 600;
-    color: #494952;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
-  .day-content {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .day-border {
-    padding-left: 8px;
-    border-left: 2px solid #e3e3e0;
-  }
-  .author-block {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .author-line {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    font-size: 13px;
-  }
-  .author-name {
-    font-weight: 600;
-    color: #2e2e33;
-  }
-  .author-mine {
-    color: #b3400f;
-  }
-  .author-count {
-    font-size: 12px;
-    color: #5b5b66;
-  }
   .change-list {
     margin: 0;
     padding: 0 0 0 18px;
@@ -168,12 +85,16 @@
   .change-item {
     overflow-wrap: anywhere;
   }
-  .more {
-    margin: 0;
-    padding-left: 18px;
+  .feed-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     font-size: 13px;
     line-height: 1.5;
     color: #5b5b66;
+  }
+  .more {
+    padding-left: 18px;
   }
   .btn-files-toggle {
     align-self: flex-start;

@@ -31,7 +31,6 @@
 
   export let repo: RepoCardView;
   /** Current time in ms, so "5 min ago" stays fresh. */
-  export let now: number = Date.now();
   /** A check is running, so "Try again" would only queue another one. */
   export let checking: boolean = false;
   /** Scroll to this card and flash it (from the tray menu). */
@@ -93,8 +92,8 @@
     notice?.kind === "warn" ||
     notice?.kind === "error" ||
     actionError !== null;
-  $: onAlertChange(repo.path, hasAlert);
   $: panels.set(repo.path, { plan, notice, noticeFrom, conflictFiles, conflictMessage, stashAlert, stashRef, stashCommand, mainDetail, showDetail, fileError, actionError, showBranches, choice });
+  $: onAlertChange(repo.path, hasAlert);
   $: if (highlight && rootEl) reveal();
 
   async function reveal() {
@@ -535,7 +534,7 @@
   <!-- Feed -->
   {#if expandable && expanded && repo.feed}
     <div class="card-body" id={bodyId}>
-      <FeedList feed={repo.feed} repoPath={repo.path} {now} />
+      <FeedList feed={repo.feed} repoPath={repo.path} />
     </div>
   {/if}
 

@@ -72,11 +72,11 @@ describe("RepoCard", () => {
       expect(container.querySelector('[role="button"]')).toBeNull();
       const toggle = screen.getByRole("button", { name: /my-repo/ });
       expect(toggle.closest("h2")).not.toBeNull();
-      expect(screen.getByText("Alex added 2 changes to the main version")).toBeInTheDocument();
+      expect(screen.getByText("Fix login timeout")).toBeInTheDocument();
       await fireEvent.click(toggle);
       expect(onToggle).toHaveBeenCalledTimes(1);
       await rerender({ expanded: false });
-      expect(screen.queryByText("Alex added 2 changes to the main version")).not.toBeInTheDocument();
+      expect(screen.queryByText("Fix login timeout")).not.toBeInTheDocument();
     });
 
     it("scrolls into view and flashes when highlighted", async () => {
@@ -99,7 +99,7 @@ describe("RepoCard", () => {
       expect(container.textContent).not.toMatch(/\b[0-9a-f]{7,40}\b/);
     });
 
-    it("shows at most 3 titles and then 'and N more'", () => {
+    it('shows at most 3 titles and then "N more · N files changed"', () => {
       const t = Math.floor(Date.now() / 1000) - 100;
       const changes = ["One", "Two", "Three", "Four", "Five"].map((title, i) => ({
         author: "Sara", title, sha: `aaaaaaa${i}`, timestamp: t - i, mine: false,
@@ -108,25 +108,39 @@ describe("RepoCard", () => {
       expect(screen.getByText("One")).toBeInTheDocument();
       expect(screen.getByText("Three")).toBeInTheDocument();
       expect(screen.queryByText("Four")).not.toBeInTheDocument();
-      expect(screen.getByText("and 5 more")).toBeInTheDocument();
+      const more = screen.getByText("5 more");
+      expect(more.parentElement?.textContent?.replace(/\s+/g, " ").trim()).toBe("5 more · 2 files changed");
     });
 
-    it("shows no 'and N more' when everything fits", () => {
+    it("shows no 'N more' when everything fits", () => {
       render(RepoCard, { repo: newsRepo(), expanded: true });
-      expect(screen.queryByText(/and \d+ more/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\d+ more/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /2 files changed/ })).toBeInTheDocument();
     });
 
-    it("groups by person when several people changed things", () => {
+    it("has no summary line or day labels", () => {
+      render(RepoCard, { repo: newsRepo(), expanded: true });
+      expect(screen.queryByText("Alex added 2 changes to the main version")).not.toBeInTheDocument();
+      expect(screen.queryByText("Today")).not.toBeInTheDocument();
+      expect(screen.queryByText("Yesterday")).not.toBeInTheDocument();
+    });
+
+    it("prefixes the author only when titles have more than one author", () => {
       const t = Math.floor(Date.now() / 1000) - 100;
       const changes = [
         { author: "Sara", title: "A", sha: "1", timestamp: t, mine: false },
         { author: "Ali", title: "B", sha: "2", timestamp: t - 5, mine: false },
         { author: "me", title: "C", sha: "3", timestamp: t - 9, mine: true },
       ];
-      render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 3, changes }) }), expanded: true });
-      expect(screen.getByText("Sara")).toBeInTheDocument();
-      expect(screen.getByText("Ali")).toBeInTheDocument();
-      expect(screen.getByText("You")).toBeInTheDocument();
+      const { unmount } = render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 3, changes }) }), expanded: true });
+      expect(screen.getByText("Sara: A")).toBeInTheDocument();
+      expect(screen.getByText("Ali: B")).toBeInTheDocument();
+      expect(screen.getByText("You: C")).toBeInTheDocument();
+      expect(screen.queryByText("Sara")).not.toBeInTheDocument();
+      unmount();
+      render(RepoCard, { repo: newsRepo(), expanded: true });
+      expect(screen.getByText("Fix login timeout")).toBeInTheDocument();
+      expect(screen.queryByText(/^Alex:/)).not.toBeInTheDocument();
     });
 
     it("lists files and opens one with { repo, file }", async () => {
