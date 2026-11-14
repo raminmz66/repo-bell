@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Fix for news staying after Update is on branch `fix/news-after-update` (2026-11-14). Branch cleanup is merged, installed and hand-tested on real repos (2026-11-10). Next: Ramin tries a real delete and Undo. Tagging v0.1.0 is still open.
+Current step: Fix for news staying after Update is merged and installed (2026-11-14). Branch cleanup is merged, installed and hand-tested on real repos (2026-11-10). Next: Ramin tries a real delete and Undo. Tagging v0.1.0 is still open.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
