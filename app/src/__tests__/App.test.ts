@@ -510,17 +510,119 @@ describe("App", () => {
     });
   });
 
+  describe("open and closed rows", () => {
+    const news = (n: number) =>
+      makeState({
+        repos: Array.from({ length: n }, (_, i) =>
+          makeRepo({ path: `${P}/n${i}`, name: `n${i}`, behind: 2, new_count: 2, feed: makeFeed() }),
+        ),
+      });
+    const toggle = (name: string) => screen.getByRole("button", { name: new RegExp(`^${name}\\b`) });
+    const boot = async (state = news(3)) => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return state; }, { shouldMockEvents: true });
+      render(App);
+      await screen.findByRole("heading", { level: 2, name: /^News/ });
+    };
+
+    it("opens news rows when 2 or fewer have news", async () => {
+      await boot(news(2));
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "true");
+      expect(toggle("n1")).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("keeps news rows closed when 3 or more have news", async () => {
+      await boot(news(3));
+      for (const n of ["n0", "n1", "n2"]) expect(toggle(n)).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("a row the user opened stays open on state-updated", async () => {
+      await boot(news(3));
+      await fireEvent.click(toggle("n0"));
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "true");
+      await emit("state-updated", news(3));
+      await waitFor(() => expect(toggle("n0")).toHaveAttribute("aria-expanded", "true"));
+    });
+
+    it("a closed row stays closed on state-updated when 2 or fewer have news", async () => {
+      await boot(news(2));
+      await fireEvent.click(toggle("n0"));
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "false");
+      await emit("state-updated", news(2));
+      await waitFor(() => expect(toggle("n1")).toHaveAttribute("aria-expanded", "true"));
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("a repo entering News opens only while News has 2 or fewer", async () => {
+      await boot(news(1));
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "true");
+      await emit("state-updated", news(2));
+      await waitFor(() => expect(toggle("n1")).toHaveAttribute("aria-expanded", "true"));
+      await emit("state-updated", news(3));
+      await waitFor(() => expect(toggle("n2")).toBeInTheDocument());
+      expect(toggle("n2")).toHaveAttribute("aria-expanded", "false");
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "true");
+      expect(toggle("n1")).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("a row that leaves News keeps its open state", async () => {
+      await boot(news(3));
+      await fireEvent.click(toggle("n0"));
+      const next = news(3);
+      next.repos[0] = makeRepo({ path: `${P}/n0`, name: "n0", behind: 2, new_count: 0, feed: makeFeed() });
+      await emit("state-updated", next);
+      const onMain = await screen.findByRole("heading", { level: 2, name: /^On main/ });
+      const btn = within(onMain.closest("section")!).getByRole("button", { name: /^n0\b/ });
+      expect(btn).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("window-shown re-applies the rule", async () => {
+      const state = news(3);
+      state.repos.push(
+        makeRepo({ path: `${P}/m`, name: "m", behind: 2, feed: makeFeed() }),
+        makeRepo({ path: `${P}/plain`, name: "plain" }),
+      );
+      await boot(state);
+      await fireEvent.click(toggle("n0"));
+      await fireEvent.click(toggle("m"));
+      const accordion = screen.getByRole("button", { name: /Up to date 1 repo/ });
+      await fireEvent.click(accordion);
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "true");
+      expect(toggle("m")).toHaveAttribute("aria-expanded", "true");
+      await emit("window-shown");
+      await waitFor(() => expect(toggle("n0")).toHaveAttribute("aria-expanded", "false"));
+      expect(toggle("m")).toHaveAttribute("aria-expanded", "false");
+      expect(accordion).toHaveAttribute("aria-expanded", "true");
+    });
+  });
+
   describe("focus-repo event", () => {
-    it("scrolls to and highlights that card", async () => {
+    it("focus jump opens, scrolls and flashes the row", async () => {
+      const scroll = vi.fn();
+      Element.prototype.scrollIntoView = scroll;
+      const state = makeState({
+        repos: [0, 1, 2].map((i) => makeRepo({ path: `${P}/n${i}`, name: `n${i}`, behind: 2, new_count: 2, feed: makeFeed() })),
+      });
+      mockIPC((cmd) => { if (cmd === "get_app_state") return state; }, { shouldMockEvents: true });
+      render(App);
+      await screen.findByRole("heading", { level: 2, name: /^News/ });
+      await emit("focus-repo", `${P}/n1`);
+      await waitFor(() => expect(scroll).toHaveBeenCalled());
+      const card = document.querySelector(`[data-repo-path="${P}/n1"]`)! as HTMLElement;
+      expect(card).toHaveClass("highlight");
+      expect(within(card).getByRole("button", { name: /^n1\b/ })).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("focus jump to a row that can't open still scrolls and flashes", async () => {
       const scroll = vi.fn();
       Element.prototype.scrollIntoView = scroll;
       mockIPC((cmd) => { if (cmd === "get_app_state") return newsState(); }, { shouldMockEvents: true });
       render(App);
       await screen.findByText("3 new");
-      await emit("focus-repo", `${P}/api`);
+      await emit("focus-repo", `${P}/docs`);
       await waitFor(() => expect(scroll).toHaveBeenCalled());
-      const card = document.querySelector(`[data-repo-path="${P}/api"]`)!;
+      const card = document.querySelector(`[data-repo-path="${P}/docs"]`)!;
       expect(card).toHaveClass("highlight");
+      expect(card.querySelector("[aria-expanded]")).toBeNull();
     });
 
     it("opens the Up to date list when the repo is in it", async () => {

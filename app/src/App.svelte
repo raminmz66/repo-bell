@@ -50,6 +50,34 @@
     pinned = next;
   }
 
+  // Which rows are open. A background update never closes a row; only the user, or window-shown, does.
+  let openPaths = new Set<string>();
+  // The News paths seen last time, so a repo that just entered News can be told apart.
+  let prevNews = new Set<string>();
+
+  function toggleRow(path: string) {
+    const next = new Set(openPaths);
+    if (!next.delete(path)) next.add(path);
+    openPaths = next;
+  }
+
+  function openRow(path: string) {
+    if (!openPaths.has(path)) openPaths = new Set(openPaths).add(path);
+  }
+
+  // Repos that enter News open while there is little news. Never closes anything.
+  function syncNews(news: RepoCardView[]) {
+    const entering = news.filter((r) => !prevNews.has(r.path)).map((r) => r.path);
+    if (news.length <= 2 && entering.length > 0) openPaths = new Set([...openPaths, ...entering]);
+    prevNews = new Set(news.map((r) => r.path));
+  }
+
+  // The window was just shown: apply the rule from scratch.
+  function resetOpen() {
+    openPaths = new Set(newsRepos.length <= 2 ? newsRepos.map((r) => r.path) : []);
+    prevNews = new Set(newsRepos.map((r) => r.path));
+  }
+
   function forget(path: string) {
     panels.delete(path);
     setAlert(path, false);
@@ -137,10 +165,13 @@
       loadError = null;
     });
 
+    const unlistenShown = listen("window-shown", resetOpen);
+
     const unlistenFocus = listen<string>("focus-repo", (event) => {
       const path = event.payload;
       currentView = "main";
       if (upToDate.some((r) => r.path === path)) showUpToDate = true;
+      openRow(path);
       highlightPath = path;
       setTimeout(() => {
         if (highlightPath === path) highlightPath = null;
@@ -150,6 +181,7 @@
     return () => {
       clearInterval(tick);
       unlistenState.then((f) => f());
+      unlistenShown.then((f) => f());
       unlistenFocus.then((f) => f());
     };
   });
@@ -174,6 +206,7 @@
   $: onBranch = watched.filter((r) => groupOf(r, pinned, alertPaths) === "onBranch");
   $: upToDate = watched.filter((r) => groupOf(r, pinned, alertPaths) === "upToDate");
   $: onMain = watched.filter((r) => groupOf(r, pinned, alertPaths) === "onMain");
+  $: syncNews(newsRepos);
   $: folderErrors = state?.folder_errors ?? [];
   $: errorTotal = errorRepos.length + folderErrors.length;
   $: firstCheck = !!state && state.checking && state.last_checked === null;
@@ -201,6 +234,8 @@
         checking={isChecking}
         highlight={highlightPath === r.path}
         {panels}
+        expanded={openPaths.has(r.path)}
+        onToggle={() => toggleRow(r.path)}
         onAlertChange={setAlert}
         onBusyChange={setBusy}
         onTryAgain={handleCheckNow}
