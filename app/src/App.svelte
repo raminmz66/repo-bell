@@ -10,6 +10,8 @@
   import WelcomeView from "./lib/WelcomeView.svelte";
   import type { PanelState } from "./lib/RepoCard.svelte";
   import type { AppStateView, FolderError, RepoCardView } from "./lib/types";
+
+  type Group = "error" | "news" | "onMain" | "onBranch" | "upToDate";
   import { errText, plural, timeAgo } from "./lib/util";
 
   let state: AppStateView | null = null;
@@ -25,6 +27,8 @@
   // What each row remembers while it moves between groups, and which rows show an alert.
   const panels = new Map<string, PanelState>();
   let alertPaths = new Set<string>();
+  // A row stays in the group it was in while one of its actions runs, so its result isn't lost.
+  let pinned = new Map<string, Group>();
 
   // Reassigns only when membership changes, otherwise the reactive call in each row loops.
   function setAlert(path: string, on: boolean) {
@@ -33,6 +37,23 @@
     if (on) next.add(path);
     else next.delete(path);
     alertPaths = next;
+  }
+
+  function setBusy(path: string, on: boolean) {
+    if (on === pinned.has(path)) return;
+    const next = new Map(pinned);
+    if (on) {
+      const r = watched.find((w) => w.path === path);
+      if (!r) return;
+      next.set(path, groupOf(r, pinned, alertPaths));
+    } else next.delete(path);
+    pinned = next;
+  }
+
+  function forget(path: string) {
+    panels.delete(path);
+    setAlert(path, false);
+    setBusy(path, false);
   }
 
   async function loadState() {
@@ -87,12 +108,12 @@
     if (!state) return;
     const ignored = Array.from(new Set([...state.settings.ignored, path]));
     state = await invoke<AppStateView>("save_settings", { settings: { ...state.settings, ignored } });
-    panels.delete(path);
+    forget(path);
   }
 
   async function removeFolder(path: string) {
     state = await invoke<AppStateView>("remove_folder", { path });
-    panels.delete(path);
+    forget(path);
   }
 
   // Back from Settings: put focus on the Settings button so keyboard users keep their place.
@@ -136,14 +157,23 @@
   // Repos that are up to date and need nothing from the user stay tucked away.
   const isPlain = (r: RepoCardView) => r.on_main && r.behind === 0 && !r.can_undo;
 
+  // Each repo is in exactly one group. A pinned row (an action is running) keeps its group.
+  function groupOf(r: RepoCardView, pins: Map<string, Group>, alerts: Set<string>): Group {
+    const pin = pins.get(r.path);
+    if (pin) return pin;
+    if (r.error) return "error";
+    if (r.new_count > 0) return "news";
+    if (!r.on_main) return "onBranch";
+    return isPlain(r) && !alerts.has(r.path) ? "upToDate" : "onMain";
+  }
+
   $: if (state?.first_run) wizardActive = true;
   $: watched = state?.repos.filter((r) => !r.ignored) ?? [];
-  $: errorRepos = watched.filter((r) => r.error);
-  $: newsRepos = watched.filter((r) => !r.error && r.new_count > 0);
-  $: quietRepos = watched.filter((r) => !r.error && r.new_count === 0);
-  $: onBranch = quietRepos.filter((r) => !r.on_main);
-  $: upToDate = quietRepos.filter((r) => isPlain(r) && !alertPaths.has(r.path));
-  $: onMain = quietRepos.filter((r) => r.on_main && !upToDate.includes(r));
+  $: errorRepos = watched.filter((r) => groupOf(r, pinned, alertPaths) === "error");
+  $: newsRepos = watched.filter((r) => groupOf(r, pinned, alertPaths) === "news");
+  $: onBranch = watched.filter((r) => groupOf(r, pinned, alertPaths) === "onBranch");
+  $: upToDate = watched.filter((r) => groupOf(r, pinned, alertPaths) === "upToDate");
+  $: onMain = watched.filter((r) => groupOf(r, pinned, alertPaths) === "onMain");
   $: folderErrors = state?.folder_errors ?? [];
   $: errorTotal = errorRepos.length + folderErrors.length;
   $: firstCheck = !!state && state.checking && state.last_checked === null;
@@ -172,6 +202,7 @@
         highlight={highlightPath === r.path}
         {panels}
         onAlertChange={setAlert}
+        onBusyChange={setBusy}
         onTryAgain={handleCheckNow}
         onStopWatching={stopWatching}
         onStateRefresh={loadState}

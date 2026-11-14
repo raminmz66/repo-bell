@@ -302,27 +302,46 @@ describe("App", () => {
       expect(screen.queryByRole("heading", { name: /^On main/ })).not.toBeInTheDocument();
     });
 
-    it("keeps a row in its group while one of its actions runs", async () => {
+    it("keeps a row in Up to date while its branch delete runs, then shows the result", async () => {
       const merged = { name: "old-one", sha: "aaa111", merged: true, last_commit_time: 1_700_000_000 };
-      const row = (o = {}) => makeRepo({ path: `${P}/web-app`, name: "web-app", old_branches: [merged], ...o });
+      let finish: (v: unknown) => void = () => {};
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state") return makeState({ repos: [makeRepo({ path: `${P}/web-app`, name: "web-app", old_branches: [merged] })] });
+        if (cmd === "delete_old_branches") return new Promise((r) => (finish = r));
+      });
+      render(App);
+      await fireEvent.click(await screen.findByRole("button", { name: /Up to date 1 repo/ }));
+      await fireEvent.click(await screen.findByRole("button", { name: /1 old branch/ }));
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      const deleting = await screen.findByRole("button", { name: "Deleting…" });
+      expect(deleting).toBeDisabled();
+      expect(screen.queryByRole("heading", { name: /^On main/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Up to date 1 repo/ })).toBeInTheDocument();
+      finish({ status: "failed", message: "Couldn't delete the branch.", detail: null });
+      expect(await screen.findByText("Couldn't delete the branch.")).toBeInTheDocument();
+      // a warn notice is an alert, so the row now sits under On main
+      const section = screen.getByRole("heading", { level: 2, name: /^On main/ }).closest("section")!;
+      expect(within(section).getByText("Couldn't delete the branch.")).toBeInTheDocument();
+    });
+
+    it("keeps an On main row in place while its update runs, even if a check makes it plain", async () => {
+      const row = (o = {}) => makeRepo({ path: `${P}/web-app`, name: "web-app", ...o });
       let finish: (v: unknown) => void = () => {};
       mockIPC(
         (cmd) => {
           if (cmd === "get_app_state") return makeState({ repos: [row({ behind: 2 })] });
-          if (cmd === "delete_old_branches") return new Promise((r) => (finish = r));
+          if (cmd === "preview_update") return new Promise((r) => (finish = r));
         },
         { shouldMockEvents: true },
       );
       render(App);
-      await fireEvent.click(await screen.findByRole("button", { name: /1 old branch/ }));
-      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
-      // A background check makes the row look plain while its delete is still running.
+      await fireEvent.click(await screen.findByRole("button", { name: "Update" }));
       await emit("state-updated", makeState({ repos: [row()] }));
       await screen.findByText("All quiet");
       expect(screen.getByRole("heading", { level: 2, name: /^On main/ })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Up to date/ })).not.toBeInTheDocument();
-      finish({ status: "failed", message: "Couldn't delete the branch.", detail: null });
-      expect(await screen.findByText("Couldn't delete the branch.")).toBeInTheDocument();
+      finish({ kind: "fast_forward", downloads: 2, yours: 0, set_aside: false, message: "This will download 2 changes" });
+      expect(await screen.findByRole("group", { name: "Update preview" })).toBeInTheDocument();
     });
   });
 

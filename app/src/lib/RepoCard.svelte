@@ -46,6 +46,8 @@
   export let panels: Map<string, PanelState> = new Map();
   /** Says whether an alert panel is showing, so the window can keep the row's group right. */
   export let onAlertChange: (path: string, on: boolean) => void = () => {};
+  /** Says whether an action is running, so the window keeps the row in its group until it ends. */
+  export let onBusyChange: (path: string, busy: boolean) => void = () => {};
 
   const saved = panels.get(repo.path);
 
@@ -113,9 +115,7 @@
   $: mergedRows = repo.old_branches.filter((b) => b.merged);
   $: unmergedRows = repo.old_branches.filter((b) => !b.merged);
   $: pickedRows = repo.old_branches.filter((b) => choice[tickKey(b)] ?? b.merged);
-  // A running action counts too, so the row can't change group and lose its result.
   $: hasAlert =
-    busy !== "" ||
     plan !== null ||
     conflictFiles.length > 0 ||
     stashAlert !== null ||
@@ -124,6 +124,7 @@
     actionError !== null;
   $: panels.set(repo.path, { plan, notice, noticeFrom, conflictFiles, conflictMessage, stashAlert, stashRef, stashCommand, mainDetail, showDetail, fileError, actionError, showBranches, choice });
   $: onAlertChange(repo.path, hasAlert);
+  $: onBusyChange(repo.path, busy !== "");
   $: if (highlight && rootEl) reveal();
 
   async function reveal() {
