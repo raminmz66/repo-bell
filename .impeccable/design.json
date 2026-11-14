@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-14T00:00:00Z",
+  "title": "Design System: RepoBell",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Signal Blue", "canonical": "#1f5fd1", "tonalRamp": ["#0c2a5e", "#123f8f", "#174aa6", "#1f5fd1", "#4d80dd", "#80a3e6", "#bccff2", "#e6eefb"] },
+      "accent-deep": { "role": "primary", "displayName": "Signal Blue Deep", "canonical": "#174aa6", "tonalRamp": ["#0a2253", "#0f3379", "#174aa6", "#1f5fd1", "#4d80dd", "#80a3e6", "#bccff2", "#e6eefb"] },
+      "accent-wash": { "role": "primary", "displayName": "Blue Wash", "canonical": "#f0f5fd", "tonalRamp": ["#123f8f", "#1f5fd1", "#4d80dd", "#80a3e6", "#bccff2", "#dbe6f8", "#f0f5fd", "#f8fbff"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1b1b1f", "tonalRamp": ["#0b0b0d", "#1b1b1f", "#2e2e34", "#45454d", "#5b5b66", "#8a8a94", "#c9c9c4", "#eeeeec"] },
+      "ink-soft": { "role": "neutral", "displayName": "Soft Ink", "canonical": "#3d3d45", "tonalRamp": ["#1b1b1f", "#2e2e34", "#3d3d45", "#5b5b66", "#8a8a94", "#b4b4bc", "#d9d9d5", "#eeeeec"] },
+      "ink-muted": { "role": "neutral", "displayName": "Muted Ink", "canonical": "#5b5b66", "tonalRamp": ["#1b1b1f", "#3d3d45", "#5b5b66", "#6e6e78", "#8a8a94", "#b4b4bc", "#d9d9d5", "#eeeeec"] },
+      "canvas": { "role": "neutral", "displayName": "Warm Canvas", "canonical": "#f6f6f4", "tonalRamp": ["#5b5b66", "#8a8a94", "#c9c9c4", "#d9d9d5", "#e3e3e0", "#eeeeec", "#f6f6f4", "#fafaf8"] },
+      "surface": { "role": "neutral", "displayName": "Paper White", "canonical": "#ffffff", "tonalRamp": ["#8a8a94", "#c9c9c4", "#e3e3e0", "#eeeeec", "#f3f3f1", "#f6f6f4", "#fafaf8", "#ffffff"] },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#e3e3e0", "tonalRamp": ["#8a8a94", "#b4b4b0", "#c9c9c4", "#d5d5d0", "#e3e3e0", "#eeeeec", "#f3f3f1", "#f6f6f4"] },
+      "danger": { "role": "status", "displayName": "Alert Red", "canonical": "#a12a20", "tonalRamp": ["#4a120d", "#6f1d16", "#a12a20", "#c4372b", "#d97b72", "#e8b9b4", "#fbe7e5", "#fdf3f2"] },
+      "caution-wash": { "role": "status", "displayName": "Amber Wash", "canonical": "#fceedd", "tonalRamp": ["#4a2807", "#84470c", "#b06418", "#d68a3c", "#ebb97a", "#f5d4a8", "#fceedd", "#fef7ee"] },
+      "success-ink": { "role": "status", "displayName": "Undo Green", "canonical": "#1e4d2b", "tonalRamp": ["#0f2816", "#1e4d2b", "#1e6b34", "#4c8f5e", "#7aae88", "#9cc4a6", "#d3e6d8", "#eaf4ec"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Header title and repo names on cards." },
+      "headline": { "displayName": "Headline", "purpose": "Welcome and empty-state headings." },
+      "body": { "displayName": "Body", "purpose": "Buttons, banners and card text." },
+      "label": { "displayName": "Label", "purpose": "Hints, field labels and small buttons." },
+      "caption": { "displayName": "Caption", "purpose": "Badges, chips and field hints." }
+    },
+    "shadows": [
+      { "name": "window-lift", "value": "0 10px 30px rgba(0, 0, 0, 0.15)", "purpose": "The app root only." },
+      { "name": "menu-lift", "value": "0 6px 18px rgba(0, 0, 0, 0.12)", "purpose": "Floating menu in Settings." },
+      { "name": "flash-ring", "value": "0 0 0 3px rgba(31, 95, 209, 0.25)", "purpose": "Highlighted card after a notification." },
+      { "name": "switch-thumb", "value": "0 1px 2px rgba(0, 0, 0, 0.25)", "purpose": "Toggle knob." }
+    ],
+    "motion": [
+      { "name": "state-ease", "value": "0.15s ease", "purpose": "Hover, toggle and press state changes." },
+      { "name": "card-highlight", "value": "0.3s ease", "purpose": "Card flash ring." },
+      { "name": "spinner", "value": "1s linear infinite", "purpose": "Checking spinner; stops under reduced motion." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main confirm action in a prompt.",
+      "html": "<button class=\"ds-btn-primary\">Update</button>",
+      "css": ".ds-btn-primary{font-family:Ubuntu,system-ui,sans-serif;height:38px;padding:0 16px;border:none;border-radius:8px;background:#1f5fd1;color:#fff;font-size:14px;font-weight:500;cursor:pointer}.ds-btn-primary:hover{background:#174aa6}.ds-btn-primary:focus-visible{outline:2px solid #1f5fd1;outline-offset:2px}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Update button on a repo card.",
+      "html": "<button class=\"ds-btn-outline\">Update</button>",
+      "css": ".ds-btn-outline{font-family:Ubuntu,system-ui,sans-serif;height:40px;padding:0 16px;border:1px solid #1f5fd1;border-radius:8px;background:#fff;color:#1f5fd1;font-size:14px;font-weight:500;cursor:pointer}.ds-btn-outline:hover{background:#f0f5fd}.ds-btn-outline:focus-visible{outline:2px solid #1f5fd1;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral action with a strong border.",
+      "html": "<button class=\"ds-btn-secondary\">Check now</button>",
+      "css": ".ds-btn-secondary{font-family:Ubuntu,system-ui,sans-serif;height:40px;padding:0 16px;border:1px solid #c9c9c4;border-radius:8px;background:#fff;color:#1b1b1f;font-size:14px;font-weight:500;cursor:pointer}.ds-btn-secondary:focus-visible{outline:2px solid #1f5fd1;outline-offset:2px}"
+    },
+    {
+      "name": "Undo Button",
+      "kind": "button",
+      "refersTo": "button-undo",
+      "description": "Reverses the last action; green edge.",
+      "html": "<button class=\"ds-btn-undo\">Undo</button>",
+      "css": ".ds-btn-undo{font-family:Ubuntu,system-ui,sans-serif;height:40px;padding:0 14px;border:1px solid #9cc4a6;border-radius:8px;background:#fff;color:#1e4d2b;font-size:14px;font-weight:500;cursor:pointer}.ds-btn-undo:focus-visible{outline:2px solid #1f5fd1;outline-offset:2px}"
+    },
+    {
+      "name": "Repo Card",
+      "kind": "card",
+      "refersTo": "repo-card",
+      "description": "Flat white card with a hairline border; one per watched repo.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-head\"><h3>my-project</h3><span class=\"ds-badge\">3 new</span></div><div class=\"ds-chips\"><span class=\"ds-chip\">main</span><span class=\"ds-chip ds-amber\">Has unsaved changes</span></div></div>",
+      "css": ".ds-card{font-family:Ubuntu,system-ui,sans-serif;width:340px;box-sizing:border-box;background:#fff;border:1px solid #e3e3e0;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;color:#1b1b1f}.ds-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px}.ds-card h3{margin:0;font-size:15px;font-weight:700}.ds-badge{font-size:12px;font-weight:500;padding:3px 9px;border-radius:6px;background:#1f5fd1;color:#fff}.ds-chips{display:flex;gap:6px 10px;flex-wrap:wrap}.ds-chip{font-size:12px;font-weight:500;padding:4px 10px;border-radius:6px;background:#eeeeec;color:#45454d}.ds-amber{background:#fceedd;color:#84470c}"
+    },
+    {
+      "name": "Error Banner",
+      "kind": "custom",
+      "refersTo": "banner-error",
+      "description": "Red wash notice with a text dismiss.",
+      "html": "<div class=\"ds-banner\"><p>Could not check my-project.</p><button class=\"ds-banner-close\">Dismiss</button></div>",
+      "css": ".ds-banner{font-family:Ubuntu,system-ui,sans-serif;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8b9b4;border-radius:8px;background:#fbe7e5;color:#6f1d16;font-size:14px;line-height:1.4}.ds-banner p{margin:0;flex:1}.ds-banner-close{min-height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:inherit;font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}.ds-banner-close:focus-visible{outline:2px solid #1f5fd1;outline-offset:2px}"
+    },
+    {
+      "name": "Select Field",
+      "kind": "input",
+      "refersTo": "select-input",
+      "description": "Settings dropdown with label and hint.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Check every</span><select class=\"ds-select\"><option>5 minutes</option></select><span class=\"ds-hint\">How often RepoBell looks.</span></label>",
+      "css": ".ds-field{font-family:Ubuntu,system-ui,sans-serif;display:flex;flex-direction:column;gap:6px;width:300px}.ds-label{font-size:13px;color:#5b5b66}.ds-select{height:44px;padding:0 12px;border:1px solid #c9c9c4;border-radius:8px;background:#fff;color:#1b1b1f;font:inherit;font-size:14px}.ds-select:focus-visible{outline:2px solid #1f5fd1;outline-offset:2px}.ds-hint{font-size:12px;line-height:1.4;color:#5b5b66}"
+    },
+    {
+      "name": "Switch",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "On/off toggle in Settings.",
+      "html": "<input type=\"checkbox\" class=\"ds-switch\" checked>",
+      "css": ".ds-switch{appearance:none;-webkit-appearance:none;margin:0;width:44px;height:26px;border-radius:13px;background:#8a8a94;position:relative;cursor:pointer}.ds-switch::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s ease}.ds-switch:checked{background:#1f5fd1}.ds-switch:checked::after{left:21px}.ds-switch:focus-visible{outline:2px solid #1f5fd1;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Status Light",
+    "overview": "RepoBell is a small panel that you glance at. Like a status light on a desk, it should be calm until something needs you. The window is plain, flat and GNOME-native. It uses one blue, white cards on a warm grey ground, and thin borders. Nothing decorates. Everything that is not news steps back into grey.\n\nThe feel is quiet, plain and utilitarian. Text is short. Controls are large enough to hit with a mouse in a hurry. Density is medium: 420 by 640 pixels holds a column of cards, not a dashboard. The system is documented as built. It describes the current card list and does not prescribe a new layout.\n\nThe light theme is the only theme today. The code shows no dark mode.",
+    "keyCharacteristics": [
+      "Flat surfaces separated by 1px borders, not shadows.",
+      "One accent blue, used for news, primary actions and focus.",
+      "Warm neutral greys, never pure grey or black.",
+      "Red, amber and green appear only as status, always as a pale wash with dark text.",
+      "Ubuntu type at 12 to 18px, weights 400, 500 and 700.",
+      "Large hit areas: 36 to 44px high controls."
+    ],
+    "rules": [
+      { "name": "The One Blue Rule", "body": "Blue means \"this is new or this is the action.\" Never use it for decoration or for plain status.", "section": "colors" },
+      { "name": "The Pale Wash Rule", "body": "Red, amber and green are never solid fills. They are a pale tint, a border and dark text. The only solid fill is the blue \"new\" badge.", "section": "colors" },
+      { "name": "The Plain Size Rule", "body": "Use only 12, 13, 14, 15 and 18px. A new size needs a reason that is not taste.", "section": "typography" },
+      { "name": "The Flat Card Rule", "body": "Cards never carry a shadow at rest. Borders do the separating.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the window flat: white cards on Warm Canvas with 1px borders.",
+      "Do reserve Signal Blue (#1f5fd1) for news, the main action and focus.",
+      "Do make every control at least 36px high, and 40px or more for actions.",
+      "Do show status as pale wash, border and dark text.",
+      "Do keep the 2px blue focus outline on all focusable elements.",
+      "Do honor `prefers-reduced-motion` for every animation.",
+      "Do use Ubuntu with the system fallbacks."
+    ],
+    "donts": [
+      "Don't add a second accent color or a solid red, amber or green fill.",
+      "Don't add shadows to cards or buttons.",
+      "Don't introduce a new radius or font size outside the scales above.",
+      "Don't use pure black or pure grey. Use the warm Ink and Canvas values.",
+      "Don't show commit SHAs or Git jargon beyond the short status labels."
+    ]
+  }
+}
