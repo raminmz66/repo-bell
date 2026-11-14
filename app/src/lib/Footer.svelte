@@ -1,7 +1,5 @@
 <script lang="ts">
   export let onAddFolder: () => void;
-  export let onMarkAllSeen: () => void;
-  export let hasNews: boolean = false;
 </script>
 
 <footer class="app-footer">
@@ -10,9 +8,6 @@
       <path d="M12 5v14M5 12h14"></path>
     </svg>
     Add folder
-  </button>
-  <button class="btn-mark-seen" disabled={!hasNews} onclick={() => { if (hasNews && onMarkAllSeen) onMarkAllSeen(); }}>
-    Mark all as seen
   </button>
 </footer>
 
@@ -44,23 +39,5 @@
   }
   .btn-add-folder:hover {
     background: #f3f3f1;
-  }
-  .btn-mark-seen {
-    height: 40px;
-    padding: 0 16px;
-    border: 1px solid #c9c9c4;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #1b1b1f;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .btn-mark-seen:hover:not(:disabled) {
-    background: #f9f9f8;
-  }
-  .btn-mark-seen:disabled {
-    opacity: 0.5;
-    cursor: default;
   }
 </style>

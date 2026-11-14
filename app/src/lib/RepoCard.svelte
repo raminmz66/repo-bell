@@ -113,7 +113,9 @@
   $: mergedRows = repo.old_branches.filter((b) => b.merged);
   $: unmergedRows = repo.old_branches.filter((b) => !b.merged);
   $: pickedRows = repo.old_branches.filter((b) => choice[tickKey(b)] ?? b.merged);
+  // A running action counts too, so the row can't change group and lose its result.
   $: hasAlert =
+    busy !== "" ||
     plan !== null ||
     conflictFiles.length > 0 ||
     stashAlert !== null ||

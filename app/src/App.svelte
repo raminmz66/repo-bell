@@ -8,7 +8,8 @@
   import FolderErrorCard from "./lib/FolderErrorCard.svelte";
   import SettingsView from "./lib/SettingsView.svelte";
   import WelcomeView from "./lib/WelcomeView.svelte";
-  import type { AppStateView, RepoCardView } from "./lib/types";
+  import type { PanelState } from "./lib/RepoCard.svelte";
+  import type { AppStateView, FolderError, RepoCardView } from "./lib/types";
   import { errText, plural, timeAgo } from "./lib/util";
 
   let state: AppStateView | null = null;
@@ -21,6 +22,18 @@
   let highlightPath: string | null = null;
   // The first-run wizard stays up until its last step, even after settings are saved.
   let wizardActive = false;
+  // What each row remembers while it moves between groups, and which rows show an alert.
+  const panels = new Map<string, PanelState>();
+  let alertPaths = new Set<string>();
+
+  // Reassigns only when membership changes, otherwise the reactive call in each row loops.
+  function setAlert(path: string, on: boolean) {
+    if (alertPaths.has(path) === on) return;
+    const next = new Set(alertPaths);
+    if (on) next.add(path);
+    else next.delete(path);
+    alertPaths = next;
+  }
 
   async function loadState() {
     try {
@@ -74,10 +87,12 @@
     if (!state) return;
     const ignored = Array.from(new Set([...state.settings.ignored, path]));
     state = await invoke<AppStateView>("save_settings", { settings: { ...state.settings, ignored } });
+    panels.delete(path);
   }
 
   async function removeFolder(path: string) {
     state = await invoke<AppStateView>("remove_folder", { path });
+    panels.delete(path);
   }
 
   // Back from Settings: put focus on the Settings button so keyboard users keep their place.
@@ -126,20 +141,16 @@
   $: errorRepos = watched.filter((r) => r.error);
   $: newsRepos = watched.filter((r) => !r.error && r.new_count > 0);
   $: quietRepos = watched.filter((r) => !r.error && r.new_count === 0);
-  $: quietVisible = quietRepos.filter((r) => !isPlain(r));
-  $: upToDate = quietRepos.filter(isPlain);
+  $: onBranch = quietRepos.filter((r) => !r.on_main);
+  $: upToDate = quietRepos.filter((r) => isPlain(r) && !alertPaths.has(r.path));
+  $: onMain = quietRepos.filter((r) => r.on_main && !upToDate.includes(r));
   $: folderErrors = state?.folder_errors ?? [];
   $: errorTotal = errorRepos.length + folderErrors.length;
   $: firstCheck = !!state && state.checking && state.last_checked === null;
   $: isChecking = localChecking || !!state?.checking;
-  $: lastChecked = !state
-    ? ""
-    : state.checking
-      ? "Checking…"
-      : state.last_checked
-        ? `Last checked ${timeAgo(state.last_checked, now)}`
-        : "";
-  $: subline = [newsRepos.length > 0 ? "Since you last looked" : "", lastChecked].filter(Boolean).join(" · ");
+  $: checkedAgo = state?.last_checked ? timeAgo(state.last_checked, now) : "";
+  $: lastChecked = state?.checking ? "Checking…" : checkedAgo ? `Last checked ${checkedAgo}` : "";
+  $: subline = state?.checking ? "Checking…" : checkedAgo ? `Checked ${checkedAgo}` : "";
   $: errorTitle = [
     errorRepos.length > 0 ? `${errorRepos.length} ${plural(errorRepos.length, "repo")} can't be checked` : "",
     folderErrors.length > 0 ? `${folderErrors.length} ${plural(folderErrors.length, "folder")} not found` : "",
@@ -148,17 +159,49 @@
     .join(", ");
   $: headline =
     newsRepos.length > 0 || errorRepos.length > 0 ? (state?.headline ?? "") : errorTitle;
-  $: allPlain = quietVisible.length === 0 && errorTotal === 0;
+  $: allPlain = onMain.length === 0 && onBranch.length === 0 && errorTotal === 0;
 </script>
 
-{#snippet quietList()}
-  {#if quietVisible.length > 0}
-    <div class="cards-list tight">
-      {#each quietVisible as r (r.path)}
-        <RepoCard repo={r} {now} highlight={highlightPath === r.path} onStateRefresh={loadState} />
-      {/each}
-    </div>
+{#snippet rowList(rows: RepoCardView[], folders: FolderError[] = [])}
+  <ul class="group-list">
+    {#each rows as r (r.path)}
+      <RepoCard
+        repo={r}
+        {now}
+        checking={isChecking}
+        highlight={highlightPath === r.path}
+        {panels}
+        onAlertChange={setAlert}
+        onTryAgain={handleCheckNow}
+        onStopWatching={stopWatching}
+        onStateRefresh={loadState}
+      />
+    {/each}
+    {#each folders as f (f.path)}
+      <FolderErrorCard folder={f} onRemove={removeFolder} />
+    {/each}
+  </ul>
+{/snippet}
+
+{#snippet group(label: string, rows: RepoCardView[], extra: { hint?: string; folders?: FolderError[]; markSeen?: boolean } = {})}
+  {@const count = rows.length + (extra.folders?.length ?? 0)}
+  {#if count > 0}
+    <section class="group">
+      <div class="group-head">
+        <h2 class="group-label">{label} <span class="count">{count}</span></h2>
+        {#if extra.markSeen}
+          <button class="group-act" onclick={handleMarkAllSeen}>Mark all as seen</button>
+        {/if}
+      </div>
+      {#if extra.hint}<p class="group-hint">{extra.hint}</p>{/if}
+      {@render rowList(rows, extra.folders)}
+    </section>
   {/if}
+{/snippet}
+
+{#snippet quietGroups()}
+  {@render group("On main", onMain)}
+  {@render group("On a branch", onBranch, { hint: "Update main refreshes main in the background. Your files stay as they are." })}
   {#if upToDate.length > 0}
     <button class="accordion-btn" onclick={() => (showUpToDate = !showUpToDate)} aria-expanded={showUpToDate}>
       <svg class="chevron" class:open={showUpToDate} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -168,24 +211,9 @@
       <span class="accordion-count">{upToDate.length} {plural(upToDate.length, "repo")}</span>
     </button>
     {#if showUpToDate}
-      <div class="cards-list tight">
-        {#each upToDate as r (r.path)}
-          <RepoCard repo={r} {now} highlight={highlightPath === r.path} onStateRefresh={loadState} />
-        {/each}
-      </div>
+      {@render rowList(upToDate)}
     {/if}
   {/if}
-{/snippet}
-
-{#snippet errorList()}
-  <div class="cards-list">
-    {#each errorRepos as r (r.path)}
-      <RepoCard repo={r} {now} checking={isChecking} highlight={highlightPath === r.path} onTryAgain={handleCheckNow} onStopWatching={stopWatching} onStateRefresh={loadState} />
-    {/each}
-    {#each folderErrors as f (f.path)}
-      <FolderErrorCard folder={f} onRemove={removeFolder} />
-    {/each}
-  </div>
 {/snippet}
 
 <main class="app-root">
@@ -253,28 +281,13 @@
           </svg>
           <div>
             <h1 class="headline-title">{headline}</h1>
-            <p class="headline-sub">
-              {subline}
-            </p>
+            <p class="headline-sub">{subline}</p>
           </div>
         </div>
 
-        {#if newsRepos.length > 0}
-          <div class="cards-list">
-            {#each newsRepos as r (r.path)}
-              <RepoCard repo={r} {now} highlight={highlightPath === r.path} onStateRefresh={loadState} />
-            {/each}
-          </div>
-        {/if}
-
-        {#if errorTotal > 0}
-          {#if newsRepos.length > 0}
-            <h2 class="section-title">{errorTitle}</h2>
-          {/if}
-          {@render errorList()}
-        {/if}
-
-        {@render quietList()}
+        {@render group("Can't check", errorRepos, { folders: folderErrors })}
+        {@render group("News", newsRepos, { markSeen: true })}
+        {@render quietGroups()}
       {:else if watched.length === 0}
         <div class="empty-center">
           {#if state.repos.length > 0}
@@ -297,11 +310,11 @@
             {#if lastChecked}<br />{lastChecked}.{/if}
           </p>
         </div>
-        {@render quietList()}
+        {@render quietGroups()}
       {/if}
     </div>
 
-    <Footer hasNews={newsRepos.length > 0} onAddFolder={handleAddFolder} onMarkAllSeen={handleMarkAllSeen} />
+    <Footer onAddFolder={handleAddFolder} />
   {/if}
 </main>
 
@@ -392,20 +405,64 @@
     font-size: 13px;
     color: #5b5b66;
   }
-  .section-title {
-    margin: 6px 0 0;
-    font-size: 15px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .cards-list {
+  .group {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
     flex-shrink: 0;
   }
-  .cards-list.tight {
+  .group-head {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    min-height: 20px;
+    margin-top: 4px;
+  }
+  .group-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #3d3d45;
+  }
+  .count {
+    margin-left: 4px;
+    font-weight: 500;
+    color: #5b5b66;
+  }
+  .group-act {
+    height: 32px;
+    margin: -6px -8px -6px auto;
+    padding: 0 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #1f5fd1;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .group-act:hover {
+    background: #f0f5fd;
+  }
+  .group-hint {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #5b5b66;
+  }
+  .group-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #e3e3e0;
+    border-radius: 10px;
   }
   .empty-center {
     flex-grow: 1;

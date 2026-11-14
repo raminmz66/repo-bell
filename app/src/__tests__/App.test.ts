@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, fireEvent, screen, waitFor } from "@testing-library/svelte";
+import { render, fireEvent, screen, waitFor, within } from "@testing-library/svelte";
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
 import App from "../App.svelte";
@@ -77,16 +77,15 @@ describe("App", () => {
       expect(screen.queryByText("4 new")).not.toBeInTheDocument();
     });
 
-    it("keeps errors in their own section, not among the news", async () => {
+    it("puts Can't check first", async () => {
       mockIPC((cmd) => { if (cmd === "get_app_state") return newsState(); });
       render(App);
-      const section = await screen.findByRole("heading", { level: 2, name: "1 repo can't be checked" });
+      const label = await screen.findByRole("heading", { level: 2, name: /^Can't check/ });
+      const news = screen.getByRole("heading", { level: 2, name: /^News/ });
       const docs = screen.getByRole("heading", { level: 3, name: "docs" });
-      const web = screen.getByRole("heading", { level: 3, name: /^web-app/ });
-      // news cards come first, the error section after them
-      expect(web.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(section.compareDocumentPosition(docs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      // an errored repo has no news badge
+      expect(label.compareDocumentPosition(news) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(label.compareDocumentPosition(docs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getAllByText("Can't check")).toHaveLength(1); // the label, no badge
       expect(docs.closest("li")!.textContent).not.toMatch(/\d+ new/);
     });
 
@@ -102,6 +101,8 @@ describe("App", () => {
       render(App);
       expect(await screen.findByRole("heading", { level: 1, name: "1 repo can't be checked" })).toBeInTheDocument();
       expect(screen.queryByRole("heading", { level: 2, name: "1 repo can't be checked" })).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: /^Can't check/ })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /^News/ })).not.toBeInTheDocument();
     });
 
     it("Try again on an error card runs check_now", async () => {
@@ -176,6 +177,152 @@ describe("App", () => {
       await fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
       expect(await screen.findByText(/disk full/)).toBeInTheDocument();
       expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it("Mark all as seen on the News label calls mark_all_seen and shows the cleared state", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state") return newsState();
+        if (cmd === "mark_all_seen") return makeState();
+      });
+      render(App);
+      const section = (await screen.findByRole("heading", { level: 2, name: /^News/ })).closest("section")!;
+      expect(within(document.querySelector("footer")!).queryByRole("button", { name: "Mark all as seen" })).toBeNull();
+      await fireEvent.click(within(section).getByRole("button", { name: "Mark all as seen" }));
+      expect(await screen.findByText("All quiet")).toBeInTheDocument();
+    });
+
+    it("shows a failed Mark all as seen in the window banner", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state") return makeState({ repos: [makeRepo({ behind: 2, new_count: 2, feed: makeFeed() })] });
+        if (cmd === "mark_all_seen") throw "Couldn't save. Try again.";
+      });
+      render(App);
+      await fireEvent.click(await screen.findByRole("button", { name: "Mark all as seen" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save. Try again.");
+    });
+  });
+
+  describe("groups", () => {
+    const hint = "Update main refreshes main in the background. Your files stay as they are.";
+    const newsRepo = (o = {}) => makeRepo({ path: `${P}/web-app`, name: "web-app", behind: 2, new_count: 2, feed: makeFeed(), ...o });
+
+    it("renders groups in order with counts", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state")
+          return makeState({
+            folder_errors: [{ path: "/home/user/gone", message: "Folder not found." }],
+            repos: [
+              makeRepo({ path: `${P}/docs`, name: "docs", error: "Can't reach the server.", error_kind: "offline" }),
+              newsRepo(),
+              makeRepo({ path: `${P}/behind`, name: "behind", behind: 2 }),
+              makeRepo({ path: `${P}/side`, name: "side", on_main: false, branch: "feature-x" }),
+              makeRepo({ path: `${P}/plain`, name: "plain" }),
+            ],
+          });
+      });
+      render(App);
+      await screen.findByRole("button", { name: /Up to date 1 repo/ });
+      const labels = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent!.replace(/\s+/g, " ").trim());
+      expect(labels).toEqual(["Can't check 2", "News 1", "On main 1", "On a branch 1"]);
+    });
+
+    it("leaves out On main and On a branch when empty", async () => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return makeState({ repos: [newsRepo()] }); });
+      render(App);
+      await screen.findByRole("heading", { level: 2, name: /^News/ });
+      expect(screen.queryByRole("heading", { name: /^On main/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /^On a branch/ })).not.toBeInTheDocument();
+    });
+
+    it("shows the side-branch hint once", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state")
+          return makeState({
+            repos: [
+              makeRepo({ path: `${P}/a`, name: "a", on_main: false, branch: "x", main_behind: 2 }),
+              makeRepo({ path: `${P}/b`, name: "b", on_main: false, branch: "y", main_behind: 2 }),
+            ],
+          });
+      });
+      render(App);
+      await screen.findByRole("heading", { level: 2, name: /^On a branch/ });
+      expect(screen.getAllByText(hint)).toHaveLength(1);
+    });
+
+    it("subline says when it last checked", async () => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return newsState(); });
+      render(App);
+      expect(await screen.findByText("Checked 2 min ago")).toBeInTheDocument();
+      expect(screen.queryByText(/Since you last looked/)).not.toBeInTheDocument();
+    });
+
+    it("All quiet comes before the On a branch group", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state")
+          return makeState({ repos: [makeRepo({ name: "side", on_main: false, branch: "feature-x", main_behind: 2 }), makeRepo({ path: `${P}/b`, name: "b" })] });
+      });
+      render(App);
+      const quiet = await screen.findByText(/Nothing new in your 2 repos/);
+      const group = screen.getByRole("heading", { name: /^On a branch/ });
+      expect(quiet.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("a news repo on a side branch sits in News", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state") return makeState({ repos: [newsRepo({ on_main: false, branch: "feature-x", main_behind: 2 })] });
+      });
+      render(App);
+      const section = (await screen.findByRole("heading", { level: 2, name: /^News/ })).closest("section")!;
+      expect(within(section).getByRole("button", { name: "Update main" })).toBeInTheDocument();
+      expect(within(section).getByText("feature-x")).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /^On a branch/ })).not.toBeInTheDocument();
+    });
+
+    it("a row with a stash alert stays out of Up to date until closed", async () => {
+      const msg = "Updated, but your unsaved changes were put aside safely. Ask a developer to bring them back.";
+      let updated = false;
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state")
+          return makeState({ repos: [updated ? newsRepo({ new_count: 0, behind: 0, feed: null }) : newsRepo({ unsaved: true })] });
+        if (cmd === "preview_update")
+          return { kind: "fast_forward", downloads: 2, yours: 0, set_aside: true, message: "This will download 2 changes. Your unsaved changes are set aside and put back" };
+        if (cmd === "update_repo") {
+          updated = true;
+          return { status: "edits_in_stash", message: msg, downloads: 2, conflict_files: [], plan: null, stash: "stash@{0}", stash_command: "git stash pop" };
+        }
+      });
+      render(App);
+      await fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+      await fireEvent.click(await screen.findByRole("button", { name: "Set aside and update" }));
+      const section = (await screen.findByRole("heading", { level: 2, name: /^On main/ })).closest("section")!;
+      expect(await within(section).findByText(msg)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Up to date/ })).not.toBeInTheDocument();
+      await fireEvent.click(within(section).getByRole("button", { name: "Close" }));
+      expect(await screen.findByRole("button", { name: /Up to date 1 repo/ })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /^On main/ })).not.toBeInTheDocument();
+    });
+
+    it("keeps a row in its group while one of its actions runs", async () => {
+      const merged = { name: "old-one", sha: "aaa111", merged: true, last_commit_time: 1_700_000_000 };
+      const row = (o = {}) => makeRepo({ path: `${P}/web-app`, name: "web-app", old_branches: [merged], ...o });
+      let finish: (v: unknown) => void = () => {};
+      mockIPC(
+        (cmd) => {
+          if (cmd === "get_app_state") return makeState({ repos: [row({ behind: 2 })] });
+          if (cmd === "delete_old_branches") return new Promise((r) => (finish = r));
+        },
+        { shouldMockEvents: true },
+      );
+      render(App);
+      await fireEvent.click(await screen.findByRole("button", { name: /1 old branch/ }));
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      // A background check makes the row look plain while its delete is still running.
+      await emit("state-updated", makeState({ repos: [row()] }));
+      await screen.findByText("All quiet");
+      expect(screen.getByRole("heading", { level: 2, name: /^On main/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Up to date/ })).not.toBeInTheDocument();
+      finish({ status: "failed", message: "Couldn't delete the branch.", detail: null });
+      expect(await screen.findByText("Couldn't delete the branch.")).toBeInTheDocument();
     });
   });
 
@@ -302,16 +449,6 @@ describe("App", () => {
   });
 
   describe("footer actions", () => {
-    it("Mark all as seen calls mark_all_seen and shows the cleared state", async () => {
-      mockIPC((cmd) => {
-        if (cmd === "get_app_state") return newsState();
-        if (cmd === "mark_all_seen") return makeState();
-      });
-      render(App);
-      await fireEvent.click(await screen.findByRole("button", { name: "Mark all as seen" }));
-      expect(await screen.findByText("All quiet")).toBeInTheDocument();
-    });
-
     it("shows a failed action inline and never opens an alert dialog", async () => {
       const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
       mockIPC((cmd) => {
