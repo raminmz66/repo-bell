@@ -228,6 +228,10 @@
   $: headline =
     newsRepos.length > 0 || errorRepos.length > 0 ? (state?.headline ?? "") : errorTitle;
   $: allPlain = onMain.length === 0 && onBranch.length === 0 && errorTotal === 0;
+  // No news and no trouble, but rows to act on: same compact headline, "All quiet" as its title.
+  $: quiet = newsRepos.length === 0 && errorTotal === 0;
+  $: headlineText = quiet ? "All quiet" : headline;
+  $: headlineSub = quiet ? `Nothing new in your ${watched.length} ${plural(watched.length, "repo")}${subline ? ` · ${subline}` : ""}` : subline;
 </script>
 
 {#snippet rowList(rows: RepoCardView[], folders: FolderError[] = [])}
@@ -336,11 +340,11 @@
           <h1 class="headline-title">Checking your repos…</h1>
           <p class="headline-desc">This can take a moment the first time.</p>
         </div>
-      {:else if newsRepos.length > 0 || errorTotal > 0}
+      {:else if newsRepos.length > 0 || errorTotal > 0 || !allPlain}
         <div class="headline-row">
           <!-- Same icons as the tray: a bell with news, a crossed bell when there is only trouble. -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-icon={newsRepos.length > 0 ? "bell" : "bell-off"}>
-            {#if newsRepos.length > 0}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1B1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-icon={quiet || newsRepos.length > 0 ? "bell" : "bell-off"}>
+            {#if quiet || newsRepos.length > 0}
               <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.7 21a2 2 0 0 1-3.4 0"></path>
             {:else}
@@ -351,8 +355,8 @@
             {/if}
           </svg>
           <div>
-            <h1 class="headline-title">{headline}</h1>
-            <p class="headline-sub">{subline}</p>
+            <h1 class="headline-title">{headlineText}</h1>
+            <p class="headline-sub">{headlineSub}</p>
           </div>
         </div>
 
@@ -376,7 +380,7 @@
           </svg>
           <h1 class="headline-title">All quiet</h1>
           <p class="headline-desc">
-            {allPlain ? `Your ${watched.length} ${plural(watched.length, "repo")} ${watched.length === 1 ? "is" : "are"} up to date.` : `Nothing new in your ${watched.length} ${plural(watched.length, "repo")}.`}
+            Your {watched.length} {plural(watched.length, "repo")} {watched.length === 1 ? "is" : "are"} up to date.
             {#if lastChecked}<br />{lastChecked}.{/if}
           </p>
         </div>

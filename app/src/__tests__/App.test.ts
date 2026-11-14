@@ -485,6 +485,20 @@ describe("App", () => {
       expect(screen.getByText("feature-x")).toBeInTheDocument();
       expect(screen.getByText("· main 2 behind")).toBeInTheDocument();
       expect(screen.getByText(/Nothing new in your 2 repos/)).toBeInTheDocument();
+      const title = screen.getByRole("heading", { level: 1, name: "All quiet" });
+      const row = title.closest(".headline-row")!;
+      expect(row).not.toBeNull();
+      expect(row).toHaveTextContent("Nothing new in your 2 repos · Checked 2 min ago");
+      expect(row.querySelector("svg")).toHaveAttribute("data-icon", "bell");
+    });
+
+    it("keeps the big centered All quiet when every repo is plain", async () => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return makeState(); });
+      render(App);
+      const title = await screen.findByRole("heading", { level: 1, name: "All quiet" });
+      expect(title.closest(".headline-row")).toBeNull();
+      expect(title.closest(".empty-center")).not.toBeNull();
+      expect(screen.getByText(/Your 1 repo is up to date\./)).toBeInTheDocument();
     });
   });
 
