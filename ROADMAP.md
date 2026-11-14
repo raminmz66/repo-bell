@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Branch cleanup is merged, installed and hand-tested on real repos (2026-11-10). Next: Ramin tries a real delete and Undo. Tagging v0.1.0 is still open.
+Current step: Fix for news staying after Update is on branch `fix/news-after-update` (2026-11-14). Branch cleanup is merged, installed and hand-tested on real repos (2026-11-10). Next: Ramin tries a real delete and Undo. Tagging v0.1.0 is still open.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -68,6 +68,11 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [x] Build, test and review
 - [x] Install and hand test (list shows on real repos; delete not tried on real data)
 - [ ] Follow-ups: remove the duplicate UI test; treat an unreadable worktree state file as checked out
+
+## Fixes
+
+- [x] News clears after Update or a pull, so "Mark all as seen" isn't needed for changes you already have (2026-11-14)
+- [ ] Known small issue: Undo after a background check can send a second notification for changes you already saw. Left as is (rare, harmless).
 
 ## Later
 

@@ -251,3 +251,65 @@ fn feed_lists_non_english_file_names_unescaped() {
         f.files_changed
     );
 }
+
+#[test]
+fn feed_pulled_changes_are_not_news() {
+    let tmp = TempDir::new().unwrap();
+    let (_remote, work, other) = setup_remote_and_clone(tmp.path());
+    let seen = remote_main_sha(&work, "main").unwrap();
+    push_titled(&other, &["a1", "a2"]);
+    git(&work, &["pull", "--ff-only"]);
+
+    let f = feed_of(&work, Some(&seen)).unwrap();
+
+    assert_eq!(f.total, 0);
+    assert!(f.changes.is_empty());
+}
+
+#[test]
+fn feed_update_main_from_side_branch_is_not_news() {
+    let tmp = TempDir::new().unwrap();
+    let (_remote, work, other) = setup_remote_and_clone(tmp.path());
+    let seen = remote_main_sha(&work, "main").unwrap();
+    git(&work, &["switch", "-c", "side"]);
+    push_titled(&other, &["a1", "a2"]);
+    git(&work, &["fetch"]);
+    git(&work, &["fetch", ".", "origin/main:main"]);
+
+    let f = feed_of(&work, Some(&seen)).unwrap();
+
+    assert_eq!(f.total, 0);
+    assert!(f.changes.is_empty());
+}
+
+#[test]
+fn feed_after_pull_only_counts_newer_pushes() {
+    let tmp = TempDir::new().unwrap();
+    let (_remote, work, other) = setup_remote_and_clone(tmp.path());
+    let seen = remote_main_sha(&work, "main").unwrap();
+    push_titled(&other, &["a1", "a2"]);
+    git(&work, &["pull", "--ff-only"]);
+    push_titled(&other, &["b1"]);
+    git(&work, &["fetch"]);
+
+    let f = feed_of(&work, Some(&seen)).unwrap();
+
+    assert_eq!(titles(&f), ["b1"]);
+    assert_eq!(f.total, 1);
+}
+
+#[test]
+fn feed_merged_into_side_branch_is_not_news() {
+    let tmp = TempDir::new().unwrap();
+    let (_remote, work, other) = setup_remote_and_clone(tmp.path());
+    let seen = remote_main_sha(&work, "main").unwrap();
+    git(&work, &["switch", "-c", "side"]);
+    push_titled(&other, &["a1", "a2"]);
+    git(&work, &["fetch"]);
+    git(&work, &["merge", "--no-edit", "origin/main"]);
+
+    let f = feed_of(&work, Some(&seen)).unwrap();
+
+    assert_eq!(f.total, 0);
+    assert!(f.changes.is_empty());
+}

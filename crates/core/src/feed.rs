@@ -30,9 +30,10 @@ pub struct Feed {
 
 /// Lists commits on `origin/<main_branch>` that are new to the user.
 ///
-/// The range is `<last_seen>..origin/<main>` when `last_seen` is given and that commit exists
-/// in the repo. Otherwise (no `last_seen`, or it no longer exists after a force-push) the range is
-/// `HEAD..origin/<main>`: what the user does not have yet.
+/// News is every commit on `origin/<main>` that the user does not have yet and has not seen yet.
+/// Commits reachable from `HEAD` or from the local `<main>` branch count as had (after Update, "Update main"
+/// or a pull). Commits reachable from `last_seen` count as seen, when that commit exists in the repo
+/// (it may be gone after a force-push).
 /// Merge commits are included like any other commit.
 /// An empty range gives an empty feed, not an error.
 pub fn feed(
@@ -42,30 +43,25 @@ pub fn feed(
     limit: usize,
 ) -> Result<Feed, GitError> {
     let run = |args: &[&str]| crate::git::run_background(repo, args);
-    let base = match last_seen {
-        Some(sha) if run(&["cat-file", "-e", &format!("{sha}^{{commit}}")]).is_ok() => sha,
-        _ => "HEAD",
-    };
-    let range = format!("{base}..origin/{main_branch}");
+    let mut revs = vec![format!("origin/{main_branch}"), "^HEAD".to_string()];
+    let local_main = format!("refs/heads/{main_branch}");
+    if run(&["rev-parse", "--verify", "--quiet", &local_main]).is_ok() {
+        revs.push(format!("^{local_main}"));
+    }
+    if let Some(sha) = last_seen {
+        if run(&["cat-file", "-e", &format!("{sha}^{{commit}}")]).is_ok() {
+            revs.push(format!("^{sha}"));
+        }
+    }
     let max = format!("--max-count={limit}");
-    let log = run(&[
-        "log",
-        "--format=%H%x1f%an%x1f%ae%x1f%at%x1f%s",
-        &max,
-        "--end-of-options",
-        &range,
-    ])?;
-    let total = run(&["rev-list", "--count", "--end-of-options", &range])?
+    let revs: Vec<&str> = revs.iter().map(String::as_str).collect();
+    let git_log = |opts: &[&str]| run(&[opts, &["--end-of-options"], &revs[..]].concat());
+    let log = git_log(&["log", "--format=%H%x1f%an%x1f%ae%x1f%at%x1f%s", &max])?;
+    let total = git_log(&["rev-list", "--count"])?
         .trim()
         .parse()
         .unwrap_or(0);
-    let names = run(&[
-        "log",
-        "--name-only",
-        "--format=",
-        "--end-of-options",
-        &range,
-    ])?;
+    let names = git_log(&["log", "--name-only", "--format="])?;
     let mut files_changed: Vec<String> = names
         .lines()
         .filter(|l| !l.is_empty())

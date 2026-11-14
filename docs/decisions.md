@@ -48,7 +48,7 @@ Opening the repo folder and copying a message for a developer were both dropped.
 
 ## What counts as news
 
-News means changes from teammates that arrived since you last looked. The tray dot, the headline and the card badge ("3 new") all follow this rule. "Behind by 4" is a separate, quiet status next to Update. "Mark all as seen" clears the news even if you haven't updated yet. Your own changes show in the feed but don't count as news. Muted repos still count as news in the window and the tray; they only skip notifications. Repos that can't be checked are not news. They get their own line ("2 repos can't be checked").
+News means changes from teammates that arrived since you last looked. The tray dot, the headline and the card badge ("3 new") all follow this rule. "Behind by 4" is a separate, quiet status next to Update. "Mark all as seen" clears the news even if you haven't updated yet. Changes you already have (after Update or a pull) are not news. Your own changes show in the feed but don't count as news. Muted repos still count as news in the window and the tray; they only skip notifications. Repos that can't be checked are not news. They get their own line ("2 repos can't be checked").
 
 Decided on 2026-11-09 after a review found that the badge and the feed showed different numbers and that "Mark all as seen" left the dot on.
 
