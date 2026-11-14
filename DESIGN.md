@@ -96,10 +96,17 @@ components:
     rounded: "{rounded.md}"
     padding: "0 14px"
     height: "40px"
-  repo-card:
+  button-text-blue:
+    backgroundColor: "transparent"
+    textColor: "{colors.accent}"
+    rounded: "{rounded.md}"
+    padding: "0 8px"
+    height: "32px"
+  button-text-blue-hover:
+    backgroundColor: "{colors.accent-wash}"
+  repo-row:
     backgroundColor: "{colors.surface}"
-    rounded: "{rounded.lg}"
-    padding: "14px"
+    padding: "9px 12px"
   badge-new:
     backgroundColor: "{colors.accent}"
     textColor: "{colors.surface}"
@@ -144,9 +151,9 @@ components:
 
 **Creative North Star: "The Status Light"**
 
-RepoBell is a small panel that you glance at. Like a status light on a desk, it should be calm until something needs you. The window is plain, flat and GNOME-native. It uses one blue, white cards on a warm grey ground, and thin borders. Nothing decorates. Everything that is not news steps back into grey.
+RepoBell is a small panel that you glance at. Like a status light on a desk, it should be calm until something needs you. The window is plain, flat and GNOME-native. It uses one blue, white lists on a warm grey ground, and thin borders. Nothing decorates. Everything that is not news steps back into grey.
 
-The feel is quiet, plain and utilitarian. Text is short. Controls are large enough to hit with a mouse in a hurry. Density is medium: 420 by 640 pixels holds a column of cards, not a dashboard. The system is documented as built. It describes the current card list and does not prescribe a new layout.
+The feel is quiet, plain and utilitarian. Text is short. Controls are large enough to hit with a mouse in a hurry. Density is medium: 420 by 640 pixels holds a few grouped lists of rows, not a dashboard. The system is documented as built. It describes the grouped rows and does not prescribe a new layout.
 
 The light theme is the only theme today. The code shows no dark mode.
 
@@ -160,10 +167,10 @@ The light theme is the only theme today. The code shows no dark mode.
 
 ## Colors
 
-A warm grey ground with white cards, one confident blue, and three pale status washes.
+A warm grey ground with white lists, one confident blue, and three pale status washes.
 
 ### Primary
-- **Signal Blue** (#1f5fd1): The only accent. The "new" badge, the Update button, links, the focus ring, the selected switch and the highlight ring that flashes a card.
+- **Signal Blue** (#1f5fd1): The only accent. The "new" badge, the Update button, links, the focus ring, the selected switch and the inset ring that flashes a row.
 - **Signal Blue Deep** (#174aa6): Hover state of the filled blue button only.
 - **Blue Wash** (#f0f5fd): Hover background of outline and open-in-editor buttons.
 
@@ -171,11 +178,11 @@ A warm grey ground with white cards, one confident blue, and three pale status w
 - **Ink** (#1b1b1f): Body text and headings.
 - **Soft Ink** (#3d3d45): Secondary labels, text buttons and chip text.
 - **Muted Ink** (#5b5b66): Hints, field labels, captions and loading text. The most used grey.
-- **Warm Canvas** (#f6f6f4): The window ground and inset boxes inside cards.
-- **Paper White** (#ffffff): Cards, footer, menus, inputs and outline buttons.
+- **Warm Canvas** (#f6f6f4): The window ground and inset boxes inside rows.
+- **Paper White** (#ffffff): Group lists, footer, menus, inputs and outline buttons.
 - **Header Band** (#ebebe8): The header strip.
 - **Chip Grey** (#eeeeec): Branch and neutral chips, text button hover.
-- **Hairline** (#e3e3e0): Card borders and the footer divider.
+- **Hairline** (#e3e3e0): List borders, row dividers and the footer divider.
 - **Strong Border** (#c9c9c4): Input and secondary button borders.
 - **Window Edge** (#d5d5d0): The outer border of the window.
 
@@ -199,8 +206,8 @@ A warm grey ground with white cards, one confident blue, and three pale status w
 
 ### Hierarchy
 - **Headline** (700, 18px): Welcome and empty-state headings.
-- **Title** (700, 15px): Header title and repo names on cards.
-- **Body** (400 to 500, 14px, 1.4): Buttons, banners, card text. The workhorse size.
+- **Title** (700, 15px): Header title and repo names on rows.
+- **Body** (400 to 500, 14px, 1.4): Buttons, banners, row text. The workhorse size.
 - **Label** (500, 13px): Hints, field labels, small buttons and links.
 - **Caption** (500, 12px): Badges, chips and field hints.
 - **Mono** (400, 12 to 13px): File paths, folder paths and Git details (stash names, commands). Never for prose.
@@ -210,7 +217,13 @@ A warm grey ground with white cards, one confident blue, and three pale status w
 
 ## Layout
 
-A single column inside a fixed 420 by 640 window. The main body scrolls and has 16px padding. Cards stack with a 12px gap. Inside cards, rows use 10px gap, and tight groups use 6 or 8px. Spacing steps in use: 6, 8, 10, 12, 16. Buttons sit in flex rows with their text vertically centered. There are no breakpoints, because the window size is fixed. A compact card variant trims padding to 8px 14px and gap to 6px. Hit targets are 36px minimum, and 40 to 44px for main actions and form controls.
+A single column inside a fixed 420 by 640 window. The main body scrolls and has 16px padding. Group lists stack with a 12px gap. Inside a row, items use a 10px gap, and tight groups use 6 or 8px. Spacing steps in use: 6, 8, 10, 12, 16. Buttons sit in flex rows with their text vertically centered. There are no breakpoints, because the window size is fixed. Hit targets are 36px minimum, and 40 to 44px for main actions and form controls. Row buttons are the exception at 32px, because the whole row is also a hit area.
+
+### Group lists and rows
+- **Group list:** Paper White, 10px radius, 1px Hairline border, Hairline dividers between rows. One list per group.
+- **Section label:** 12px, 700, uppercase, Soft Ink, with the count in Muted Ink (500).
+- **Row:** about 9px 12px padding, two lines. Click anywhere on it to open it.
+- **Row states:** hover and open use #fbfbf9. A notification jump flashes an inset 2px Signal Blue ring on #f4f8fe. An open alert shows an inset 1.5px red (#c4372b) ring.
 
 ## Elevation & Depth
 
@@ -219,33 +232,33 @@ The system is flat. Depth comes from 1px borders and the step between warm canva
 ### Shadow Vocabulary
 - **Window lift** (`box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15)`): The app root only.
 - **Menu lift** (`box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12)`): The floating menu in Settings.
-- **Flash ring** (`box-shadow: 0 0 0 3px rgba(31, 95, 209, 0.25)`): Highlighted card after a notification, with a blue border and #f4f8fe fill.
+- **Flash ring** (`box-shadow: inset 0 0 0 2px #1f5fd1`): Highlighted row after a notification, on a #f4f8fe fill.
 - **Switch thumb** (`box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25)`): The toggle knob.
 
 ### Named Rules
-**The Flat Card Rule.** Cards never carry a shadow at rest. Borders do the separating.
+**The Flat List Rule.** Lists and rows never carry a shadow at rest. Borders do the separating.
 
 ## Shapes
 
-Softly rounded rectangles. The window is 12px. Cards and menus are 10px. Buttons, inputs, banners and inset boxes are 8px. Badges and chips are 6px. Switches are full pills and dots are circles. Borders are 1px; a conflict card uses a heavier 1.5px red border. Nothing is clipped or cut at an angle.
+Softly rounded rectangles. The window is 12px. Group lists and menus are 10px. Buttons, inputs, banners and inset boxes are 8px. Badges and chips are 6px. Switches are full pills and dots are circles. Borders are 1px. Nothing is clipped or cut at an angle.
 
 ## Components
 
 ### Buttons
 - **Shape:** 8px radius, 36 to 40px high, 14px text.
 - **Primary:** Filled Signal Blue, white text, 500 weight, 0 16px padding (38px high). Hover goes to Signal Blue Deep.
-- **Outline:** White fill, blue 1px border and text, 40px high. The Update button on a card. Hover adds Blue Wash.
+- **Outline:** White fill, blue 1px border and text. The Update button on a row (32px high). Hover adds Blue Wash.
+- **Update main:** No fill, Signal Blue text, 32px high, 0 8px padding. Hover adds Blue Wash. A quiet text button, so a blue outline stays a sign of team news.
 - **Secondary:** White fill, Strong Border, Ink text, 40px high.
 - **Text:** No fill, Soft Ink text, Chip Grey on hover. Used for cancel and dismiss.
 - **Undo:** White fill, Green Edge border, green text. Disabled goes flat grey (#f3f3f1 fill).
 - **Disabled:** 60% opacity, default cursor.
 - **Focus:** 2px Signal Blue outline with 2px offset, on every focusable element.
 
-### Cards / Containers
+### Containers
 - **Corner Style:** 10px.
 - **Background:** Paper White on Warm Canvas.
-- **Border:** 1px Hairline. Conflict state uses 1.5px red (#c4372b).
-- **Internal Padding:** 14px, with 10px between rows.
+- **Border:** 1px Hairline.
 - **Inset box:** Warm Canvas fill, Hairline border, 8px radius, 12px padding. Holds the update prompt and previews.
 
 ### Badges and Chips
@@ -264,12 +277,12 @@ Red wash, Red Edge border, Red Ink 14px text, 8px radius, with an underlined tex
 A header band (#ebebe8) with a 1px bottom border, a centered 15px bold title and 8px-radius icon buttons that darken on hover (#e0e0dc). The footer is white with a Hairline top border and the same style of ghost buttons. There are no tabs.
 
 ### Motion
-Short and functional. State changes ease over 0.15s, the card highlight over 0.3s, and spinners turn at 1s linear. Reduced-motion media queries exist in the app, the cards, Settings and Welcome.
+Short and functional. State changes ease over 0.15s, the row highlight over 0.3s, and spinners turn at 1s linear. Reduced-motion media queries exist in the app, the rows, Settings and Welcome.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep the window flat: white cards on Warm Canvas with 1px borders.
+- **Do** keep the window flat: white lists on Warm Canvas with 1px borders.
 - **Do** reserve Signal Blue (#1f5fd1) for news, the main action and focus.
 - **Do** make every control at least 36px high, and 40px or more for actions.
 - **Do** show status as pale wash, border and dark text.
@@ -279,7 +292,7 @@ Short and functional. State changes ease over 0.15s, the card highlight over 0.3
 
 ### Don't:
 - **Don't** add a second accent color or a solid red, amber or green fill.
-- **Don't** add shadows to cards or buttons.
+- **Don't** add shadows to lists, rows or buttons.
 - **Don't** introduce a new radius or font size outside the scales above.
 - **Don't** use pure black or pure grey. Use the warm Ink and Canvas values.
 - **Don't** show commit SHAs or Git jargon beyond the short status labels.

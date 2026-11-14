@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Fix for news staying after Update is merged and installed (2026-11-14). Branch cleanup is merged, installed and hand-tested on real repos (2026-11-10). Next: Ramin tries a real delete and Undo. Tagging v0.1.0 is still open.
+Current step: The grouped rows build is done (2026-11-14). It waits for a hand check in the running app, then merge and reinstall. Fix for news staying after Update is merged and installed (2026-11-14). Branch cleanup is merged, installed and hand-tested on real repos (2026-11-10). Next: Ramin tries a real delete and Undo. Tagging v0.1.0 is still open.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -72,6 +72,11 @@ Each screen gets a senior UI/UX review before it is marked done.
 ## Fixes
 
 - [x] News clears after Update or a pull, so "Mark all as seen" isn't needed for changes you already have (2026-11-14)
+- [ ] Main window redesign: grouped rows instead of cards (2026-11-14)
+  - [x] Design (`docs/superpowers/specs/2026-11-14-grouped-rows-design.md`)
+  - [x] Plan
+  - [x] Build
+  - [ ] Hand check in the running app, merge and reinstall
 - [ ] Known small issue: Undo after a background check can send a second notification for changes you already saw. Left as is (rare, harmless).
 
 ## Later

@@ -137,6 +137,20 @@ Deleting:
 - Undo brings each deleted branch back at the same commit, with its upstream. A second delete adds to the Undo list, and Undo brings back every branch deleted since the last Undo. It lasts as long as Update's Undo. A branch whose name exists again is skipped.
 - Teams that never delete server branches see nothing. GitHub's "Automatically delete head branches" setting makes the feature work best.
 
+## Main window layout
+
+Decided 2026-11-14. Full design: `docs/superpowers/specs/2026-11-14-grouped-rows-design.md`.
+
+The main window shows repos as rows in groups, not as cards: Can't check, News, On main, On a branch, then the collapsed Up to date list. Each group is one bordered list with a small label and its count. A row has two lines: name, "N new" badge, time and action on the first; who changed things or the branch on the second, with small flags for unsaved changes, old branches and Ahead. Each number appears once, so "Behind by N" no longer shows on news rows; the Update preview says how many changes it downloads.
+
+When the window opens, news rows start open if 2 or fewer repos have news, otherwise closed. Clicking a row opens it. A background check never closes a row the user opened. A tray jump always opens that repo's row.
+
+"Mark all as seen" moved from the footer to the News label. The side-branch hint shows once under the On a branch label. Update main is a quiet text button, so a blue outline means the team has news for you.
+
+While one of its actions runs, a row stays in the group it was in. A row with an open alert stays out of Up to date.
+
+Measured before the change: 1 of 9 repos that needed a look fit above the fold at 420×640 with 16 repos. Layout B (leaner cards) scrolls again at 5 news repos, and C (list then repo page) needs 2 clicks plus Back per action.
+
 ## Design reviews
 
 Mockups are HTML files in `docs/mockups/`. Each one is also published as a private claude.ai artifact so it can be opened on a phone.
