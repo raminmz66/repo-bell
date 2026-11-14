@@ -302,6 +302,31 @@ describe("App", () => {
       expect(screen.queryByRole("heading", { name: /^On main/ })).not.toBeInTheDocument();
     });
 
+    it("keeps a running action's result when the page switches from All quiet to the news view", async () => {
+      const msg = "Updated, but your unsaved changes were put aside safely. Ask a developer to bring them back.";
+      const rowA = () => makeRepo({ path: `${P}/a`, name: "a", behind: 2, unsaved: true });
+      let finish: (v: unknown) => void = () => {};
+      mockIPC(
+        (cmd) => {
+          if (cmd === "get_app_state") return makeState({ repos: [rowA()] });
+          if (cmd === "preview_update")
+            return { kind: "fast_forward", downloads: 2, yours: 0, set_aside: true, message: "This will download 2 changes. Your unsaved changes are set aside and put back" };
+          if (cmd === "update_repo") return new Promise((r) => (finish = r));
+        },
+        { shouldMockEvents: true },
+      );
+      render(App);
+      await screen.findByText("All quiet");
+      await fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+      await fireEvent.click(await screen.findByRole("button", { name: "Set aside and update" }));
+      expect(await screen.findByRole("button", { name: "Updating…" })).toBeDisabled();
+      await emit("state-updated", makeState({ repos: [rowA(), newsRepo({ path: `${P}/b`, name: "b" })] }));
+      await screen.findByRole("heading", { level: 2, name: /^News/ });
+      expect(screen.getByRole("button", { name: "Updating…" })).toBeDisabled();
+      finish({ status: "edits_in_stash", message: msg, downloads: 2, conflict_files: [], plan: null, stash: "stash@{0}", stash_command: "git stash pop" });
+      expect(await screen.findByText(msg)).toBeInTheDocument();
+    });
+
     it("keeps a row in Up to date while its branch delete runs, then shows the result", async () => {
       const merged = { name: "old-one", sha: "aaa111", merged: true, last_commit_time: 1_700_000_000 };
       let finish: (v: unknown) => void = () => {};

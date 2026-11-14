@@ -353,7 +353,6 @@
 
         {@render group("Can't check", errorRepos, { folders: folderErrors })}
         {@render group("News", newsRepos, { markSeen: true })}
-        {@render quietGroups()}
       {:else if watched.length === 0}
         <div class="empty-center">
           {#if state.repos.length > 0}
@@ -376,8 +375,8 @@
             {#if lastChecked}<br />{lastChecked}.{/if}
           </p>
         </div>
-        {@render quietGroups()}
       {/if}
+      {#if !state.offline && !firstCheck}{@render quietGroups()}{/if}
     </div>
 
     <Footer onAddFolder={handleAddFolder} />
