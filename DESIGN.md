@@ -153,7 +153,7 @@ components:
 
 RepoBell is a small panel that you glance at. Like a status light on a desk, it should be calm until something needs you. The window is plain, flat and GNOME-native. It uses one blue, white lists on a warm grey ground, and thin borders. Nothing decorates. Everything that is not news steps back into grey.
 
-The feel is quiet, plain and utilitarian. Text is short. Controls are large enough to hit with a mouse in a hurry. Density is medium: 420 by 640 pixels holds a few grouped lists of rows, not a dashboard. The system is documented as built. It describes the grouped rows and does not prescribe a new layout.
+The feel is quiet, plain and utilitarian. Text is short. Controls are large enough to hit with a mouse in a hurry. Density is medium: 420 by 640 pixels holds a few grouped lists of rows, not a dashboard.
 
 The light theme is the only theme today. The code shows no dark mode.
 
@@ -167,7 +167,7 @@ The light theme is the only theme today. The code shows no dark mode.
 
 ## Colors
 
-A warm grey ground with white lists, one confident blue, and three pale status washes.
+A warm grey ground with white lists, one blue, and three pale status washes.
 
 ### Primary
 - **Signal Blue** (#1f5fd1): The only accent. The "new" badge, the Update button, links, the focus ring, the selected switch and the inset ring that flashes a row.
