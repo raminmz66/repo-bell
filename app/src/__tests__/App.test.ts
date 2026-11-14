@@ -191,6 +191,17 @@ describe("App", () => {
       expect(await screen.findByText("All quiet")).toBeInTheDocument();
     });
 
+    it("puts focus on Check now after Mark all as seen", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state") return newsState();
+        if (cmd === "mark_all_seen") return makeState();
+      });
+      render(App);
+      await fireEvent.click(await screen.findByRole("button", { name: "Mark all as seen" }));
+      await screen.findByText("All quiet");
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Check now" })));
+    });
+
     it("shows a failed Mark all as seen in the window banner", async () => {
       mockIPC((cmd) => {
         if (cmd === "get_app_state") return makeState({ repos: [makeRepo({ behind: 2, new_count: 2, feed: makeFeed() })] });

@@ -112,6 +112,9 @@
     notice = null;
     try {
       state = await invoke<AppStateView>("mark_all_seen");
+      // The button sat in the News label, which is gone now.
+      await nextTick();
+      document.querySelector<HTMLElement>('button[aria-label="Check now"]')?.focus();
     } catch (e) {
       notice = errText(e);
     }
