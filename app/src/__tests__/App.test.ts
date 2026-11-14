@@ -355,6 +355,31 @@ describe("App", () => {
       expect(await screen.findByText(msg)).toBeInTheDocument();
     });
 
+    it("forgets a row's old notice when its repo is stopped and later comes back", async () => {
+      const merged = { name: "old-one", sha: "aaa111", merged: true, last_commit_time: 1_700_000_000 };
+      const row = (o = {}) => makeRepo({ path: `${P}/web-app`, name: "web-app", old_branches: [merged], ...o });
+      mockIPC(
+        (cmd) => {
+          if (cmd === "get_app_state") return makeState({ repos: [row()] });
+          if (cmd === "delete_old_branches") return { status: "failed", message: "Couldn't delete the branch.", detail: null };
+          if (cmd === "save_settings") return makeState({ repos: [row({ ignored: true })] });
+        },
+        { shouldMockEvents: true },
+      );
+      render(App);
+      await fireEvent.click(await screen.findByRole("button", { name: /Up to date 1 repo/ }));
+      await fireEvent.click(await screen.findByRole("button", { name: /1 old branch/ }));
+      await fireEvent.click(screen.getByRole("button", { name: "Delete 1 branch" }));
+      expect(await screen.findByText("Couldn't delete the branch.")).toBeInTheDocument();
+      await emit("state-updated", makeState({ repos: [row({ error: "The folder is gone.", error_kind: "folder_missing" })] }));
+      await fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+      await waitFor(() => expect(screen.queryByText("web-app")).not.toBeInTheDocument());
+      await emit("state-updated", makeState({ repos: [row()] }));
+      expect(await screen.findByText("web-app")).toBeInTheDocument();
+      expect(screen.queryByText("Couldn't delete the branch.")).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /^On main/ })).not.toBeInTheDocument();
+    });
+
     it("keeps a row in Up to date while its branch delete runs, then shows the result", async () => {
       const merged = { name: "old-one", sha: "aaa111", merged: true, last_commit_time: 1_700_000_000 };
       let finish: (v: unknown) => void = () => {};
@@ -627,6 +652,15 @@ describe("App", () => {
       const onMain = await screen.findByRole("heading", { level: 2, name: /^On main/ });
       const btn = within(onMain.closest("section")!).getByRole("button", { name: /^n0\b/ });
       expect(btn).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("window-shown opens both rows when 2 or fewer have news", async () => {
+      await boot(news(2));
+      await fireEvent.click(toggle("n0"));
+      expect(toggle("n0")).toHaveAttribute("aria-expanded", "false");
+      await emit("window-shown");
+      await waitFor(() => expect(toggle("n0")).toHaveAttribute("aria-expanded", "true"));
+      expect(toggle("n1")).toHaveAttribute("aria-expanded", "true");
     });
 
     it("window-shown re-applies the rule", async () => {

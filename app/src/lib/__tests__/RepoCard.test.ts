@@ -224,6 +224,31 @@ describe("RepoCard", () => {
       expect(screen.queryByText(/^Alex:/)).not.toBeInTheDocument();
     });
 
+    it("lists authors and titles newest first, with each author once", () => {
+      const t = Math.floor(Date.now() / 1000) - 100;
+      const changes = [
+        { author: "Ali", title: "Middle", sha: "1", timestamp: t - 10, mine: false },
+        { author: "Sara", title: "Oldest", sha: "2", timestamp: t - 30, mine: false },
+        { author: "Sara", title: "Newest", sha: "3", timestamp: t, mine: false },
+      ];
+      const repo = newsRepo({ feed: makeFeed({ total_changes: 3, changes, files_changed: [] }) });
+      const { container } = render(RepoCard, { repo, expanded: true });
+      expect(screen.getByText("Sara, Ali")).toBeInTheDocument();
+      const titles = [...container.querySelectorAll(".change-item")].map((li) => li.textContent);
+      expect(titles).toEqual(["Sara: Newest", "Ali: Middle", "Sara: Oldest"]);
+    });
+
+    it("puts a dot between 'N more' and the files toggle only when both show", () => {
+      const t = Math.floor(Date.now() / 1000) - 100;
+      const changes = ["One", "Two", "Three"].map((title, i) => ({ author: "Sara", title, sha: `a${i}`, timestamp: t - i, mine: false }));
+      const meta = (c: HTMLElement) => c.querySelector(".feed-meta")!.textContent!.replace(/\s+/g, " ").trim();
+      const onlyMore = render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 5, changes, files_changed: [] }) }), expanded: true });
+      expect(meta(onlyMore.container)).toBe("2 more");
+      onlyMore.unmount();
+      const onlyFiles = render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 3, changes, files_changed: ["a.ts", "b.ts"] }) }), expanded: true });
+      expect(meta(onlyFiles.container)).toBe("2 files changed");
+    });
+
     it("lists files and opens one with { repo, file }", async () => {
       let args: any = null;
       mockIPC((cmd, a) => { if (cmd === "open_editor") args = a; });
