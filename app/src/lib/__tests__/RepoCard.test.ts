@@ -56,42 +56,44 @@ describe("RepoCard", () => {
       expect(container.querySelector(".repo-card")).toHaveClass("compact");
     });
 
-    it("starts a news card expanded and a quiet one with own changes collapsed", () => {
+    it("follows the expanded prop", () => {
       const { unmount } = render(RepoCard, { repo: newsRepo() });
-      expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "true");
-      unmount();
-      render(RepoCard, { repo: makeRepo({ feed: makeFeed() }) });
       expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByText("Fix login timeout")).not.toBeInTheDocument();
+      unmount();
+      render(RepoCard, { repo: newsRepo(), expanded: true });
+      expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("Fix login timeout")).toBeInTheDocument();
     });
 
     it("uses a real disclosure button inside the heading, with no div role=button", async () => {
-      const { container } = render(RepoCard, { repo: newsRepo() });
+      const onToggle = vi.fn();
+      const { container, rerender } = render(RepoCard, { repo: newsRepo(), expanded: true, onToggle });
       expect(container.querySelector('[role="button"]')).toBeNull();
       const toggle = screen.getByRole("button", { name: /my-repo/ });
       expect(toggle.closest("h2")).not.toBeNull();
       expect(screen.getByText("Alex added 2 changes to the main version")).toBeInTheDocument();
       await fireEvent.click(toggle);
-      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(onToggle).toHaveBeenCalledTimes(1);
+      await rerender({ expanded: false });
       expect(screen.queryByText("Alex added 2 changes to the main version")).not.toBeInTheDocument();
-      await fireEvent.click(toggle);
-      expect(screen.getByText("Alex added 2 changes to the main version")).toBeInTheDocument();
     });
 
-    it("expands and scrolls into view when highlighted", async () => {
+    it("scrolls into view and flashes when highlighted", async () => {
       const scroll = vi.fn();
       Element.prototype.scrollIntoView = scroll;
       const { rerender, container } = render(RepoCard, { repo: makeRepo({ feed: makeFeed() }), highlight: false });
       expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "false");
       await rerender({ highlight: true });
       await waitFor(() => expect(scroll).toHaveBeenCalled());
-      expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: /my-repo/ })).toHaveAttribute("aria-expanded", "false");
       expect(container.querySelector(".repo-card")).toHaveClass("highlight");
     });
   });
 
   describe("feed", () => {
     it("shows change titles but never commit hashes", () => {
-      const { container } = render(RepoCard, { repo: newsRepo() });
+      const { container } = render(RepoCard, { repo: newsRepo(), expanded: true });
       expect(screen.getByText("Fix login timeout")).toBeInTheDocument();
       expect(container.textContent).not.toContain("abc1234");
       expect(container.textContent).not.toMatch(/\b[0-9a-f]{7,40}\b/);
@@ -102,7 +104,7 @@ describe("RepoCard", () => {
       const changes = ["One", "Two", "Three", "Four", "Five"].map((title, i) => ({
         author: "Sara", title, sha: `aaaaaaa${i}`, timestamp: t - i, mine: false,
       }));
-      render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 8, changes }) }) });
+      render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 8, changes }) }), expanded: true });
       expect(screen.getByText("One")).toBeInTheDocument();
       expect(screen.getByText("Three")).toBeInTheDocument();
       expect(screen.queryByText("Four")).not.toBeInTheDocument();
@@ -110,7 +112,7 @@ describe("RepoCard", () => {
     });
 
     it("shows no 'and N more' when everything fits", () => {
-      render(RepoCard, { repo: newsRepo() });
+      render(RepoCard, { repo: newsRepo(), expanded: true });
       expect(screen.queryByText(/and \d+ more/)).not.toBeInTheDocument();
     });
 
@@ -121,7 +123,7 @@ describe("RepoCard", () => {
         { author: "Ali", title: "B", sha: "2", timestamp: t - 5, mine: false },
         { author: "me", title: "C", sha: "3", timestamp: t - 9, mine: true },
       ];
-      render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 3, changes }) }) });
+      render(RepoCard, { repo: newsRepo({ feed: makeFeed({ total_changes: 3, changes }) }), expanded: true });
       expect(screen.getByText("Sara")).toBeInTheDocument();
       expect(screen.getByText("Ali")).toBeInTheDocument();
       expect(screen.getByText("You")).toBeInTheDocument();
@@ -130,7 +132,7 @@ describe("RepoCard", () => {
     it("lists files and opens one with { repo, file }", async () => {
       let args: any = null;
       mockIPC((cmd, a) => { if (cmd === "open_editor") args = a; });
-      render(RepoCard, { repo: newsRepo() });
+      render(RepoCard, { repo: newsRepo(), expanded: true });
       const toggle = screen.getByRole("button", { name: /2 files changed/ });
       expect(toggle).toHaveAttribute("aria-expanded", "false");
       await fireEvent.click(toggle);
@@ -141,7 +143,7 @@ describe("RepoCard", () => {
     it("shows a failed editor open inline", async () => {
       const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
       mockIPC((cmd) => { if (cmd === "open_editor") throw "The file is outside the repo."; });
-      render(RepoCard, { repo: newsRepo() });
+      render(RepoCard, { repo: newsRepo(), expanded: true });
       await fireEvent.click(screen.getByRole("button", { name: /2 files changed/ }));
       await fireEvent.click(screen.getByRole("button", { name: /README\.md/ }));
       await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("The file is outside the repo."));
@@ -270,6 +272,41 @@ describe("RepoCard", () => {
       expect(alert).toHaveTextContent("stash@{0}");
       expect(alert).toHaveTextContent("git stash pop");
       expect(screen.getByText(msg).textContent).not.toMatch(/git|`/);
+    });
+
+    const stashMsg = "Updated, but your unsaved changes were put aside safely. Ask a developer to bring them back.";
+    async function runStashFlow(props: Record<string, unknown>, status: Partial<UpdateResult> = { status: "edits_in_stash", message: stashMsg, stash: "stash@{0}", stash_command: "git stash pop" }) {
+      mockIPC((cmd) => {
+        if (cmd === "preview_update") return setAside;
+        if (cmd === "update_repo") return result(status);
+      });
+      const view = render(RepoCard, { repo: newsRepo({ unsaved: true }), ...props });
+      await fireEvent.click(screen.getByRole("button", { name: "Update" }));
+      await fireEvent.click(await screen.findByRole("button", { name: "Set aside and update" }));
+      return view;
+    }
+
+    it("keeps panel state across a remount", async () => {
+      const panels = new Map();
+      const { unmount } = await runStashFlow({ panels });
+      await screen.findByText(stashMsg);
+      unmount();
+      render(RepoCard, { repo: newsRepo({ unsaved: true }), panels });
+      expect(screen.getByText(stashMsg)).toBeInTheDocument();
+    });
+
+    it("reports when an alert panel shows", async () => {
+      const onAlertChange = vi.fn();
+      const { unmount } = await runStashFlow({ onAlertChange });
+      await screen.findByText(stashMsg);
+      expect(onAlertChange).toHaveBeenLastCalledWith(PATH, true);
+      await fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(onAlertChange).toHaveBeenLastCalledWith(PATH, false);
+      unmount();
+      const second = vi.fn();
+      await runStashFlow({ onAlertChange: second }, {});
+      await screen.findByText("Updated. 2 changes downloaded.");
+      expect(second).toHaveBeenLastCalledWith(PATH, false);
     });
 
     it("Escape closes the preview and focus goes back to Update", async () => {

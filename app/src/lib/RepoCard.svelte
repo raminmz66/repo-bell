@@ -1,8 +1,32 @@
+<script module lang="ts">
+  import type { PlanView } from "./types";
+
+  export type Notice = { kind: "success" | "info" | "warn" | "error"; text: string };
+
+  /** What a row remembers while the window moves it between groups. */
+  export type PanelState = {
+    plan: PlanView | null;
+    notice: Notice | null;
+    noticeFrom: "update" | "cleanup";
+    conflictFiles: string[];
+    conflictMessage: string;
+    stashAlert: string | null;
+    stashRef: string | null;
+    stashCommand: string | null;
+    mainDetail: string | null;
+    showDetail: boolean;
+    fileError: string | null;
+    actionError: string | null;
+    showBranches: boolean;
+    choice: Record<string, boolean>;
+  };
+</script>
+
 <script lang="ts">
   import { tick } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import FeedList from "./FeedList.svelte";
-  import type { RepoCardView, PlanView, UpdateResult, SimpleResult } from "./types";
+  import type { RepoCardView, UpdateResult, SimpleResult } from "./types";
   import { errText, sentence, plural, timeAgo } from "./util";
 
   export let repo: RepoCardView;
@@ -15,32 +39,37 @@
   export let onStateRefresh: () => void = () => {};
   export let onTryAgain: () => Promise<void> | void = () => {};
   export let onStopWatching: ((path: string) => Promise<void>) | undefined = undefined;
+  /** The window owns open/closed, so a row keeps its state when it moves between groups. */
+  export let expanded: boolean = false;
+  export let onToggle: () => void = () => {};
+  /** Panel memory by repo path, kept by the window. */
+  export let panels: Map<string, PanelState> = new Map();
+  /** Says whether an alert panel is showing, so the window can keep the row's group right. */
+  export let onAlertChange: (path: string, on: boolean) => void = () => {};
 
-  type Notice = { kind: "success" | "info" | "warn" | "error"; text: string };
+  const saved = panels.get(repo.path);
 
   let rootEl: HTMLElement;
   let updateBtn: HTMLButtonElement | undefined;
-  let isExpanded = repo.new_count > 0 && !repo.error;
-  let prevNew = repo.new_count;
 
-  let plan: PlanView | null = null;
+  let plan: PlanView | null = saved?.plan ?? null;
   let busy: "" | "preview" | "update" | "main" | "undo" | "remove" | "cleanup" | "cleanup-undo" = "";
-  let notice: Notice | null = null;
-  let conflictFiles: string[] = [];
-  let conflictMessage = "";
-  let stashAlert: string | null = null;
-  let stashRef: string | null = null;
-  let stashCommand: string | null = null;
-  let mainDetail: string | null = null;
-  let showDetail = false;
-  let fileError: string | null = null;
-  let actionError: string | null = null;
-  let showBranches = false;
+  let notice: Notice | null = saved?.notice ?? null;
+  let conflictFiles: string[] = saved?.conflictFiles ?? [];
+  let conflictMessage = saved?.conflictMessage ?? "";
+  let stashAlert: string | null = saved?.stashAlert ?? null;
+  let stashRef: string | null = saved?.stashRef ?? null;
+  let stashCommand: string | null = saved?.stashCommand ?? null;
+  let mainDetail: string | null = saved?.mainDetail ?? null;
+  let showDetail = saved?.showDetail ?? false;
+  let fileError: string | null = saved?.fileError ?? null;
+  let actionError: string | null = saved?.actionError ?? null;
+  let showBranches = saved?.showBranches ?? false;
   // Ticks the user changed. A row not listed here follows its default: ticked when merged.
   // Ticks are keyed by name and tip, so a branch that moved after ticking is unticked.
-  let choice: Record<string, boolean> = {};
+  let choice: Record<string, boolean> = saved?.choice ?? {};
   const tickKey = (b: { name: string; sha: string }) => `${b.name}@${b.sha}`;
-  let noticeFrom: "update" | "cleanup" = "update";
+  let noticeFrom: "update" | "cleanup" = saved?.noticeFrom ?? "update";
 
   $: listId = `old-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   $: bodyId = `body-${repo.path.replace(/[^a-zA-Z0-9]/g, "-")}`;
@@ -57,17 +86,18 @@
   $: mergedRows = repo.old_branches.filter((b) => b.merged);
   $: unmergedRows = repo.old_branches.filter((b) => !b.merged);
   $: pickedRows = repo.old_branches.filter((b) => choice[tickKey(b)] ?? b.merged);
-  $: trackNews(repo.new_count);
+  $: hasAlert =
+    plan !== null ||
+    conflictFiles.length > 0 ||
+    stashAlert !== null ||
+    notice?.kind === "warn" ||
+    notice?.kind === "error" ||
+    actionError !== null;
+  $: onAlertChange(repo.path, hasAlert);
+  $: panels.set(repo.path, { plan, notice, noticeFrom, conflictFiles, conflictMessage, stashAlert, stashRef, stashCommand, mainDetail, showDetail, fileError, actionError, showBranches, choice });
   $: if (highlight && rootEl) reveal();
 
-  // Fresh news on a card that was quiet opens it.
-  function trackNews(n: number) {
-    if (n > 0 && prevNew === 0 && !repo.error) isExpanded = true;
-    prevNew = n;
-  }
-
   async function reveal() {
-    if (expandable) isExpanded = true;
     await tick();
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     rootEl?.scrollIntoView?.({ block: "center", behavior: reduce ? "auto" : "smooth" });
@@ -288,8 +318,8 @@
     <div class="title-group">
       <h2 class="repo-title">
         {#if expandable}
-          <button class="disclosure" aria-expanded={isExpanded} aria-controls={bodyId} onclick={() => (isExpanded = !isExpanded)}>
-            <svg class="drawer-chevron" class:open={isExpanded} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <button class="disclosure" aria-expanded={expanded} aria-controls={bodyId} onclick={onToggle}>
+            <svg class="drawer-chevron" class:open={expanded} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M9 18l6-6-6-6"></path>
             </svg>
             <span class="name">{repo.name}</span>
@@ -503,7 +533,7 @@
   {/if}
 
   <!-- Feed -->
-  {#if expandable && isExpanded && repo.feed}
+  {#if expandable && expanded && repo.feed}
     <div class="card-body" id={bodyId}>
       <FeedList feed={repo.feed} repoPath={repo.path} {now} />
     </div>
