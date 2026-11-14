@@ -21,58 +21,71 @@
   }
 </script>
 
-<article class="folder-card" data-folder-path={folder.path}>
-  <div class="head">
-    <h2 class="title">{baseName(folder.path)}</h2>
-    <span class="badge" title="RepoBell couldn't check this folder">Can't check</span>
-  </div>
+<li class="row" data-folder-path={folder.path}>
+  <h3 class="title" title={baseName(folder.path)}>{baseName(folder.path)}</h3>
+  <button class="btn-secondary row-act" disabled={busy} title="Stop watching this folder. Your files aren't touched." onclick={remove}>
+    {busy ? "Removing…" : "Remove"}
+  </button>
   <p class="msg">{folder.message}</p>
   <p class="path" title={folder.path}>{folder.path}</p>
   {#if error}<p class="err" role="alert">{error}</p>{/if}
-  <div class="actions">
-    <button class="btn-secondary" disabled={busy} title="Stop watching this folder. Your files aren't touched." onclick={remove}>
-      {busy ? "Removing…" : "Remove"}
-    </button>
-  </div>
-</article>
+</li>
 
 <style>
-  .folder-card {
-    background: #ffffff;
-    border: 1px solid #e3e3e0;
-    border-radius: 10px;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .head {
-    display: flex;
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 2px;
     align-items: center;
-    gap: 8px;
+    padding: 9px 12px;
+    border-top: 1px solid #e3e3e0;
+  }
+  .row:first-child {
+    border-top: none;
   }
   .title {
+    grid-column: 1;
+    min-width: 0;
     margin: 0;
-    flex-grow: 1;
-    font-size: 15px;
+    padding-left: 22px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
     font-weight: 700;
   }
-  .badge {
-    font-size: 12px;
+  .row-act {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #c9c9c4;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1b1b1f;
+    font-size: 13px;
     font-weight: 500;
-    padding: 3px 9px;
-    border-radius: 6px;
-    background: #fbe7e5;
-    color: #a12a20;
+    cursor: pointer;
+  }
+  .row-act:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .msg,
+  .path,
+  .err {
+    grid-column: 1;
+    min-width: 0;
+    margin: 0;
+    padding-left: 22px;
   }
   .msg {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.4;
+    font-size: 13px;
     color: #3d3d45;
+    overflow-wrap: anywhere;
   }
   .path {
-    margin: 0;
     font-size: 12px;
     font-family: "Ubuntu Mono", ui-monospace, monospace;
     color: #5b5b66;
@@ -81,27 +94,7 @@
     white-space: nowrap;
   }
   .err {
-    margin: 0;
     font-size: 13px;
     color: #a12a20;
-  }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-  }
-  .btn-secondary {
-    height: 40px;
-    padding: 0 16px;
-    border: 1px solid #c9c9c4;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #1b1b1f;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .btn-secondary:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
 </style>
