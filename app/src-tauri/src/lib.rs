@@ -15,7 +15,9 @@ use watcher::SharedEngine;
 
 /// Shows the window at the top right of its screen, then raises and focuses it. The position is
 /// set after `show` because some window managers ignore a position given to a hidden window.
+/// Emits `window-shown` at the end if the window was hidden.
 fn show_and_position_window(window: &tauri::WebviewWindow) {
+    let was_hidden = !window.is_visible().unwrap_or(true);
     let _ = window.show();
     let monitor = window
         .current_monitor()
@@ -34,6 +36,9 @@ fn show_and_position_window(window: &tauri::WebviewWindow) {
     }
     let _ = window.unminimize();
     let _ = window.set_focus();
+    if was_hidden {
+        let _ = window.emit("window-shown", ());
+    }
 }
 
 /// A fresh folder for the tray icon files on each launch. The tray names its files
