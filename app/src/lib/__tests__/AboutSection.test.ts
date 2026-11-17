@@ -59,6 +59,25 @@ describe("AboutSection", () => {
     expect(screen.getByText("RepoBell 0.1.0")).toBeInTheDocument();
   });
 
+  it("idle shows no status line", () => {
+    const { container } = render(AboutSection, { update: makeUpdate({}), now });
+    expect(container.querySelector(".status")).toBeNull();
+  });
+
+  it("download numbers count only while downloading", () => {
+    mount({ status: "ready", available: ready, error: "not_installed", downloaded: 5_000_000, total: 9_000_000 });
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.queryByText(/MB/)).toBeNull();
+  });
+
+  it("try again after an install error waits for a repo action", () => {
+    mount({ status: "ready", available: ready, error: "bad_download", busy: true });
+    const again = screen.getByRole("button", { name: "Try again" });
+    expect(again).toBeDisabled();
+    const id = again.getAttribute("aria-describedby")!;
+    expect(document.getElementById(id)).toHaveTextContent("Wait for the repo action to finish.");
+  });
+
   it("notes are split into items and only shown when not empty", () => {
     mount({ status: "ready", available: ready });
     expect(screen.getByText("What's new in 0.2.0")).toBeInTheDocument();

@@ -41,6 +41,7 @@
 
   $: line = lineFor(update, version, sizeText, now);
   $: btn = buttonFor(update);
+  $: waiting = btn?.action === "install" && update.busy;
   $: notes = (update.available?.notes ?? "")
     .split("\n")
     .map((l) => l.trim().replace(/^[-*] /, "").trim())
@@ -78,7 +79,8 @@
   function buttonFor(u: UpdateView): Btn | null {
     if (!u.can_update) return null;
     if (u.error) {
-      return { label: "Try again", primary: u.error === "not_installed", action: u.error === "offline" ? "check" : "install", disabled: false };
+      const action = u.error === "offline" ? "check" : "install";
+      return { label: "Try again", primary: u.error === "not_installed", action, disabled: action === "install" && u.busy };
     }
     switch (u.status) {
       case "ready":
@@ -121,20 +123,23 @@
       <div class="who">
         <div class="ver">RepoBell {update.current}</div>
         {#if line}
-          <p class="status" class:ready={line.tone === "ready"} class:error={line.tone === "error"} role={line.alert ? "alert" : undefined}>{line.text}</p>
+          <!-- A new element for each line, so a screen reader announces the alert. -->
+          {#key line.text}
+            <p class="status" class:ready={line.tone === "ready"} class:error={line.tone === "error"} role={line.alert ? "alert" : undefined}>{line.text}</p>
+          {/key}
         {/if}
       </div>
       {#if btn}
         <button
           class={btn.primary ? "btn-primary" : "btn-quiet"}
           disabled={btn.disabled}
-          aria-describedby={btn.action === "install" && update.busy && !update.error ? "install-wait" : undefined}
+          aria-describedby={waiting ? "install-wait" : undefined}
           onclick={() => run(btn.action)}
         >{btn.label}</button>
       {/if}
     </div>
 
-    {#if btn && btn.action === "install" && update.busy && !update.error}
+    {#if waiting}
       <p class="wait" id="install-wait">Wait for the repo action to finish.</p>
     {/if}
 
