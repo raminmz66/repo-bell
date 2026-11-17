@@ -31,6 +31,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
+      - name: Install frontend packages
+        working-directory: app
+        run: npm ci
       - name: Build
         working-directory: app
         shell: bash
@@ -38,14 +41,13 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
-          npm ci
           npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":true}}' 2>&1 | tee build.log
           if grep -E "does not match the public key|Failed to add bundler type" build.log; then exit 1; fi
       - name: Release notes
         run: |
           git fetch --force origin "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           if [ "$(git cat-file -t "$GITHUB_REF_NAME")" = tag ]; then
-            git tag -l --format='%(contents:subject)%0a%(contents:body)' "$GITHUB_REF_NAME" > notes.txt
+            git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > notes.txt
           else
             : > notes.txt
           fi

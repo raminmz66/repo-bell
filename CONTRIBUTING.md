@@ -107,10 +107,15 @@ To publish a release:
 2. Commit and merge to `main`.
 3. Tag it and push the tag:
    ```bash
-   git tag -a vX.Y.Z -m "What changed, in a few short lines"
+   git tag -a vX.Y.Z -m "RepoBell X.Y.Z" -m "- First change
+   - Second change"
    git push origin vX.Y.Z
    ```
-   Use `-a` and a message. The message becomes the release notes and the update notes in the app. A plain tag gives none.
+   Use `-a`. The first `-m` is the title. The second `-m` is a list with one `- ` line per change, in plain words a designer understands. Those lines are what users see under "What's new" in the app and on the GitHub release page; the title is not shown. A plain tag gives no notes. For example:
+   ```bash
+   git tag -a v0.2.0 -m "RepoBell 0.2.0" -m "- Shows the version and installs updates
+   - Faster checks for many repos"
+   ```
 
 The release workflow checks that the tag matches `tauri.conf.json`, builds and signs the packages and attaches them to a GitHub release, with `latest.json` for in-app updates. It needs the `TAURI_SIGNING_PRIVATE_KEY` repo secret.
 
