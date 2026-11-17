@@ -25,7 +25,7 @@ RepoBell sits quietly in your Ubuntu top bar, watches your Git repos, and tells 
 wget -qO /tmp/RepoBell.deb https://github.com/raminmz66/repo-bell/releases/latest/download/RepoBell_amd64.deb && sudo apt install -y /tmp/RepoBell.deb
 ```
 
-Then open RepoBell from the app menu. RepoBell checks for a new version once a day; Settings, About installs it.
+Then open RepoBell from the app menu. RepoBell checks for a new version once a day. To install one, open Settings, then About.
 
 Or use the AppImage, if you don't want a package:
 
