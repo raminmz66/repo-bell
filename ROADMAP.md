@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Check progress (status strip, tray label, 4 repos at once) is merged and installed (2026-11-17). Next: Ramin tests it by hand, including the tray menu open during a check. Branch cleanup is merged and installed; Ramin still tries a real delete and Undo. Tagging v0.1.0 is still open.
+Current step: Check progress (status strip, tray label, 4 repos at once) is merged, installed and hand-tested by Ramin (2026-11-17). Next: Ramin tries a real branch delete and Undo. Tagging v0.1.0 is still open.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -78,12 +78,12 @@ Each screen gets a senior UI/UX review before it is marked done.
   - [x] Build
   - [x] Hand check in the running app, merge and reinstall
   - [x] Tray jump now scrolls to the row (WebKitGTK ignored smooth scrolling)
-- [ ] Check progress and 4 repos at once (2026-11-17)
+- [x] Check progress and 4 repos at once (2026-11-17)
   - [x] Design (`docs/superpowers/specs/2026-11-17-check-progress-design.md`)
   - [x] Plan
   - [x] Build
   - [x] Merge and reinstall
-  - [ ] Hand test by Ramin (strip on a news screen, tray menu open during a check, Settings save mid-check)
+  - [x] Hand test by Ramin
 - [ ] Known small issue: Undo after a background check can send a second notification for changes you already saw. Left as is (rare, harmless).
 
 ## Later
