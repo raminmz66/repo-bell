@@ -3,6 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import type { UpdateView } from "./types";
   import { checkedAt } from "./util";
+  import appIcon from "../../src-tauri/icons/128x128.png?no-inline";
 
   export let update: UpdateView;
   export let now: number;
@@ -13,6 +14,8 @@
     text: string;
     tone: "normal" | "ready" | "error";
     alert: boolean;
+    /** The end of `text` that must stay on one line. */
+    keep?: string;
   }
   interface Btn {
     label: string;
@@ -30,22 +33,41 @@
 
   let section: HTMLElement;
   let heading: HTMLElement;
+  let button: HTMLButtonElement | undefined;
 
   $: version = update.available?.version ?? "";
   $: downloading = update.status === "downloading";
-  // After a failed install the backend keeps `downloaded`, so the numbers count only while downloading.
-  $: doneMb = downloading ? Math.floor(update.downloaded / 1e6) : 0;
-  $: totalMb = downloading && update.total ? Math.ceil(update.total / 1e6) : null;
+  $: doneMb = Math.floor(update.downloaded / 1e6);
+  $: totalMb = update.total ? Math.ceil(update.total / 1e6) : null;
   $: sizeText = totalMb === null ? `${doneMb} MB` : `${doneMb} of ${totalMb} MB`;
-  $: pct = downloading && update.total ? Math.min(100, (update.downloaded / update.total) * 100) : 0;
+  $: pct = update.total ? Math.min(100, (update.downloaded / update.total) * 100) : 0;
 
   $: line = lineFor(update, version, sizeText, now);
   $: btn = buttonFor(update);
   $: waiting = btn?.action === "install" && update.busy;
-  $: notes = (update.available?.notes ?? "")
-    .split("\n")
-    .map((l) => l.trim().replace(/^[-*] /, "").trim())
-    .filter((l) => l !== "");
+  $: notes = parseNotes(update.available?.notes ?? "");
+  // Runs before the page updates, so it still sees the button the user pressed.
+  $: keepFocus(btn);
+
+  /** A bullet ("- " or "* ") starts an item; any other line continues the item before it. */
+  function parseNotes(text: string): string[] {
+    const items: string[] = [];
+    for (const raw of text.split("\n")) {
+      const l = raw.trim();
+      if (l === "") continue;
+      if (/^[-*] /.test(l)) items.push(l.slice(2).trim());
+      else if (items.length > 0) items[items.length - 1] += ` ${l}`;
+      else items.push(l);
+    }
+    return items;
+  }
+
+  /** When the button the user is on goes away or turns off, the keyboard focus goes to the heading. */
+  async function keepFocus(next: Btn | null) {
+    if (!button || document.activeElement !== button || (next && !next.disabled)) return;
+    await tick();
+    heading?.focus({ preventScroll: true });
+  }
 
   function lineFor(u: UpdateView, v: string, size: string, nowMs: number): Line | null {
     if (!u.can_update) return { text: "This copy was built from source, so it doesn't update itself.", tone: "normal", alert: false };
@@ -54,11 +76,9 @@
       case "checking":
         return { text: "Checking for updates…", tone: "normal", alert: false };
       case "up_to_date":
-        return {
-          text: u.checked_at === null ? "Up to date" : `Up to date. Checked ${checkedAt(u.checked_at, nowMs)}`,
-          tone: "normal",
-          alert: false,
-        };
+        if (u.checked_at === null) return { text: "Up to date", tone: "normal", alert: false };
+        const checked = `Checked ${checkedAt(u.checked_at, nowMs)}`;
+        return { text: `Up to date. ${checked}`, tone: "normal", alert: false, keep: checked };
       case "ready":
         return { text: `Version ${v} is ready`, tone: "ready", alert: false };
       case "downloading":
@@ -116,16 +136,13 @@
 
   <div class="about-card">
     <div class="about-top">
-      <svg class="bell" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1F5FD1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
-        <path d="M13.7 21a2 2 0 0 1-3.4 0"></path>
-      </svg>
+      <img class="icon" src={appIcon} alt="" width="40" height="40" />
       <div class="who">
         <div class="ver">RepoBell {update.current}</div>
         {#if line}
           <!-- A new element for each line, so a screen reader announces the alert. -->
           {#key line.text}
-            <p class="status" class:ready={line.tone === "ready"} class:error={line.tone === "error"} role={line.alert ? "alert" : undefined}>{line.text}</p>
+            <p class="status" class:ready={line.tone === "ready"} class:error={line.tone === "error"} role={line.alert ? "alert" : "status"}>{#if line.keep}{line.text.slice(0, -line.keep.length)}<span class="nowrap">{line.keep}</span>{:else}{line.text}{/if}</p>
           {/key}
         {/if}
       </div>
@@ -133,6 +150,7 @@
         <button
           class={btn.primary ? "btn-primary" : "btn-quiet"}
           disabled={btn.disabled}
+          bind:this={button}
           aria-describedby={waiting ? "install-wait" : undefined}
           onclick={() => run(btn.action)}
         >{btn.label}</button>
@@ -188,10 +206,10 @@
     font-size: 15px;
     font-weight: 700;
   }
+  /* Only a script focuses this heading, so no ring. */
+  .section-title:focus,
   .section-title:focus-visible {
-    outline: 2px solid #1f5fd1;
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: none;
   }
   .about-card {
     padding: 12px;
@@ -203,9 +221,11 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    min-height: 36px;
   }
-  .bell {
+  .icon {
     flex-shrink: 0;
+    border-radius: 10px;
   }
   .who {
     flex: 1;
@@ -221,6 +241,9 @@
     font-size: 13px;
     line-height: 1.4;
     color: #5b5b66;
+  }
+  .nowrap {
+    white-space: nowrap;
   }
   .status.ready {
     color: #1f5fd1;
@@ -267,6 +290,7 @@
   }
   .wait {
     margin: 8px 0 0;
+    text-align: right;
     font-size: 12px;
     line-height: 1.4;
     color: #5b5b66;
@@ -322,6 +346,9 @@
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
+  }
+  .link:hover {
+    color: #174aa6;
   }
   .license {
     color: #5b5b66;

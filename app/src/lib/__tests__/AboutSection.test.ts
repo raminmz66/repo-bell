@@ -1,3 +1,4 @@
+import { tick } from "svelte";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, screen, waitFor } from "@testing-library/svelte";
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
@@ -41,7 +42,8 @@ describe("AboutSection", () => {
   it.each(rows)("$name: line and button", ({ update, line, button, disabled, alert }) => {
     mount(update);
     if (line) {
-      const el = screen.getByText(line);
+      // The "Checked …" end sits in its own span, so match the whole line by its text content.
+      const el = screen.getByText((_, e) => e?.tagName === "P" && e.textContent === line);
       if (alert) expect(el).toHaveAttribute("role", "alert");
       else expect(el).not.toHaveAttribute("role", "alert");
     }
@@ -160,6 +162,51 @@ describe("AboutSection", () => {
     mount({ can_update: false, status: "checking" });
     expect(screen.getByText("This copy was built from source, so it doesn't update itself.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Check for updates|Install|Try again/ })).toBeNull();
+  });
+
+  it("notes: a line that is not a bullet joins the item before it", () => {
+    mount({ status: "ready", available: { version: "0.2.0", notes: "- First change\n  that wraps\n- Second" } });
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["First change that wraps", "Second"]);
+  });
+
+  it("notes: a first line without a bullet starts an item", () => {
+    mount({ status: "ready", available: { version: "0.2.0", notes: "Plain first\n* Second" } });
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Plain first", "Second"]);
+  });
+
+  it("only errors are alerts; other lines are polite status", () => {
+    mount({ status: "checking" });
+    expect(screen.getByText("Checking for updates…")).toHaveAttribute("role", "status");
+  });
+
+  it("an error line stays an alert", () => {
+    mount({ error: "offline" });
+    expect(screen.getByText("Can't reach GitHub to check for updates")).toHaveAttribute("role", "alert");
+  });
+
+  it.each([
+    ["Install", { status: "ready", available: ready }, { status: "downloading", available: ready }],
+    ["Check for updates", {}, { status: "checking" }],
+    ["Try again", { status: "ready", available: ready, error: "bad_download" }, { status: "downloading", available: ready }],
+    ["Try again", { error: "offline" }, { status: "checking" }],
+  ] as [string, Partial<UpdateView>, Partial<UpdateView>][])(
+    "focus moves to the About heading when %s goes away",
+    async (name, before, after) => {
+      mockIPC(() => {});
+      const { rerender } = render(AboutSection, { update: makeUpdate(before), now });
+      screen.getByRole("button", { name }).focus();
+      await rerender({ update: makeUpdate(after), now });
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "About" })));
+    },
+  );
+
+  it("focus stays put when it was not on the button", async () => {
+    mockIPC(() => {});
+    const { rerender } = render(AboutSection, { update: makeUpdate({ status: "ready", available: ready }), now });
+    screen.getByRole("button", { name: "Source code" }).focus();
+    await rerender({ update: makeUpdate({ status: "downloading", available: ready }), now });
+    await tick();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Source code" }));
   });
 
   it("jumps to About when asked", async () => {
