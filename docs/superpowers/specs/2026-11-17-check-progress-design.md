@@ -1,6 +1,6 @@
 # Check progress and parallel checks design
 
-Date: 2026-11-17. Status: draft for Ramin's review. Ramin decided the strip, the 4-at-once rule and the tray text on 2026-11-17. Everything marked "(Claude's call)" is open to change.
+Date: 2026-11-17. Status: approved by Ramin on 2026-11-17. Ramin decided the strip, the 4-at-once rule and the tray text on 2026-11-17. Everything marked "(Claude's call)" is open to change.
 
 Visual targets: option C "Status strip under the header" in `artifacts/check-progress.html` (main checkout) and option B "Menu shows progress" in `artifacts/check-progress-tray.html` (this worktree). Where this spec and a mockup differ, the spec wins.
 
