@@ -545,52 +545,167 @@ pub fn is_offline(repos: &[RepoCardView]) -> bool {
     checked.peek().is_some() && checked.all(|r| r.error_kind.as_deref() == Some("offline"))
 }
 
-/// Checks every watched repo one after another. Returns the cards and whether the whole check
-/// was offline (see `is_offline`). Blocking: run it on a blocking thread. The network fetch runs
-/// without the repo's lock, so an Update or Undo on that repo never waits for the server.
+/// How far a check has got: `done` repos finished of `total` watched, and the name of the
+/// oldest repo still being checked.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CheckProgress {
+    pub done: usize,
+    pub total: usize,
+    pub current: String,
+}
+
+/// How many repos are checked at the same time.
+pub const CHECK_WORKERS: usize = 4;
+
+/// Runs `work` on every item with up to `workers` threads, each taking the next unstarted item,
+/// and returns the results in item order. `on_step(done, first)` is called after every start and
+/// finish when the pair changed and something is still running; `first` is the lowest index in
+/// flight. Steps are sent while holding the lock, so they arrive in order.
+fn run_in_order<T: Sync, R: Send>(
+    items: &[T],
+    workers: usize,
+    work: impl Fn(&T) -> R + Sync,
+    on_step: impl Fn(usize, usize) + Sync,
+) -> Vec<R> {
+    struct Shared {
+        next: usize,
+        done: usize,
+        running: BTreeSet<usize>,
+        last: Option<(usize, usize)>,
+    }
+    let shared = StdMutex::new(Shared {
+        next: 0,
+        done: 0,
+        running: BTreeSet::new(),
+        last: None,
+    });
+    let step = |s: &mut Shared| {
+        if let Some(&first) = s.running.first() {
+            if s.last != Some((s.done, first)) {
+                s.last = Some((s.done, first));
+                on_step(s.done, first);
+            }
+        }
+    };
+    let results: Vec<StdMutex<Option<R>>> = items.iter().map(|_| StdMutex::new(None)).collect();
+    std::thread::scope(|scope| {
+        for _ in 0..workers.min(items.len()) {
+            scope.spawn(|| loop {
+                let i = {
+                    let mut s = shared.lock().unwrap();
+                    let i = s.next;
+                    if i >= items.len() {
+                        return;
+                    }
+                    s.next += 1;
+                    s.running.insert(i);
+                    step(&mut s);
+                    i
+                };
+                let r = work(&items[i]);
+                *results[i].lock().unwrap() = Some(r);
+                let mut s = shared.lock().unwrap();
+                s.running.remove(&i);
+                s.done += 1;
+                step(&mut s);
+            });
+        }
+    });
+    results
+        .into_iter()
+        .map(|r| r.into_inner().unwrap().expect("every item was worked on"))
+        .collect()
+}
+
+/// Checks every watched repo, up to `CHECK_WORKERS` at a time, and reports progress. Returns the
+/// cards, in discovery order, and whether the whole check was offline (see `is_offline`).
+/// Blocking: run it on a blocking thread. The network fetch runs without the repo's lock, so an
+/// Update or Undo on that repo never waits for the server.
 pub fn check_repositories(
     settings: &Settings,
     seen: &Seen,
     undo: &BTreeMap<PathBuf, UndoPoint>,
     cleanup: &mut Cleanup,
     locks: &RepoLocks,
+    on_progress: &(dyn Fn(CheckProgress) + Sync),
 ) -> (Vec<RepoCardView>, bool) {
     if settings.folders.is_empty() {
         return (Vec::new(), false);
     }
-    let mut views = Vec::new();
-    for path in repobell_core::discover(&settings.folders, DISCOVER_DEPTH) {
-        let fetch_error = if settings.ignored.contains(&path) {
-            None
-        } else {
-            let e = fetch_repo(&path);
+    let paths = repobell_core::discover(&settings.folders, DISCOVER_DEPTH);
+    let watched: Vec<&PathBuf> = paths
+        .iter()
+        .filter(|p| !settings.ignored.contains(p))
+        .collect();
+    let server = &cleanup.server;
+    let checked = run_in_order(
+        &watched,
+        CHECK_WORKERS,
+        |&path| {
+            let fetch_error = fetch_repo(path);
+            let mut local: BTreeMap<PathBuf, ServerBranches> = server
+                .get(path)
+                .map(|e| BTreeMap::from([(path.clone(), e.clone())]))
+                .unwrap_or_default();
             // A failed fetch just showed the server can't answer: don't wait on it again.
-            if e.is_none() {
-                if let Ok(st) = repobell_core::status(&path) {
+            if fetch_error.is_none() {
+                if let Ok(st) = repobell_core::status(path) {
                     let main = st.main_branch.unwrap_or_else(|| "main".to_string());
-                    refresh_server_branches(
-                        &path,
-                        &main,
-                        &mut cleanup.server,
-                        now_seconds(),
-                        false,
-                    );
+                    refresh_server_branches(path, &main, &mut local, now_seconds(), false);
                 }
             }
-            e
-        };
-        let lock = locks.get(&path);
-        let _guard = lock.blocking_lock();
-        let ctx = Ctx {
-            settings,
-            seen,
-            undo,
-            cleanup,
-        };
-        views.push(build_view(path, &ctx, fetch_error.as_ref()));
+            let lock = locks.get(path);
+            let _guard = lock.blocking_lock();
+            let one = Cleanup {
+                server: local,
+                undo: undo_entry(&cleanup.undo, path),
+            };
+            let ctx = Ctx {
+                settings,
+                seen,
+                undo,
+                cleanup: &one,
+            };
+            let view = build_view(path.clone(), &ctx, fetch_error.as_ref());
+            (view, one.server.into_iter().next())
+        },
+        |done, first| {
+            on_progress(CheckProgress {
+                done,
+                total: watched.len(),
+                current: repo_name(watched[first]),
+            });
+        },
+    );
+    let mut checked = checked.into_iter();
+    let mut views = Vec::new();
+    let mut answers = Vec::new();
+    for path in &paths {
+        if settings.ignored.contains(path) {
+            let ctx = Ctx {
+                settings,
+                seen,
+                undo,
+                cleanup,
+            };
+            views.push(build_view(path.clone(), &ctx, None));
+        } else if let Some((view, answer)) = checked.next() {
+            views.push(view);
+            answers.extend(answer);
+        }
     }
+    cleanup.server.extend(answers);
     let offline = is_offline(&views);
     (views, offline)
+}
+
+fn undo_entry(
+    undo: &BTreeMap<PathBuf, Vec<DeletedBranch>>,
+    path: &Path,
+) -> BTreeMap<PathBuf, Vec<DeletedBranch>> {
+    undo.get(path)
+        .map(|d| BTreeMap::from([(path.to_path_buf(), d.clone())]))
+        .unwrap_or_default()
 }
 
 /// Wait before the next check: the normal interval, doubled for each check in a row where
@@ -699,7 +814,7 @@ async fn check_once(app: &AppHandle, engine: &SharedEngine) {
     let eng = engine.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let mut cleanup = cleanup;
-        let r = check_repositories(&settings, &seen, &undo, &mut cleanup, &eng.locks);
+        let r = check_repositories(&settings, &seen, &undo, &mut cleanup, &eng.locks, &|_| {});
         (r, cleanup)
     })
     .await;
@@ -836,6 +951,73 @@ mod tests {
         assert_eq!(mins(60, 3), 60);
         assert_eq!(mins(1, 30), 60);
         assert_eq!(mins(0, 0), 1, "a zero interval counts as one minute");
+    }
+
+    #[test]
+    fn run_in_order_keeps_item_order() {
+        let items: Vec<u64> = (0..6).collect();
+        let out = run_in_order(
+            &items,
+            4,
+            |&i| {
+                std::thread::sleep(Duration::from_millis(if i == 0 { 80 } else { 5 }));
+                i * 10
+            },
+            |_, _| {},
+        );
+        assert_eq!(out, [0, 10, 20, 30, 40, 50]);
+    }
+
+    #[test]
+    fn run_in_order_runs_at_most_4_at_once() {
+        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        let (now, peak) = (AtomicUsize::new(0), AtomicUsize::new(0));
+        let items = [(); 8];
+        run_in_order(
+            &items,
+            CHECK_WORKERS,
+            |_| {
+                peak.fetch_max(now.fetch_add(1, SeqCst) + 1, SeqCst);
+                std::thread::sleep(Duration::from_millis(30));
+                now.fetch_sub(1, SeqCst);
+            },
+            |_, _| {},
+        );
+        assert_eq!(peak.load(SeqCst), 4);
+    }
+
+    #[test]
+    fn run_in_order_steps_follow_the_oldest_in_flight() {
+        let steps = StdMutex::new(Vec::new());
+        let items: Vec<u64> = (0..6).collect();
+        run_in_order(
+            &items,
+            4,
+            |&i| {
+                let ms = match i {
+                    0 => 150,
+                    1 => 300,
+                    _ => 10,
+                };
+                std::thread::sleep(Duration::from_millis(ms));
+            },
+            |done, first| steps.lock().unwrap().push((done, first)),
+        );
+        assert_eq!(
+            *steps.lock().unwrap(),
+            [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 1)]
+        );
+    }
+
+    #[test]
+    fn run_in_order_with_no_items_sends_no_steps() {
+        let out = run_in_order(
+            &[] as &[u8],
+            4,
+            |_| 1,
+            |_, _| panic!("no steps for no items"),
+        );
+        assert!(out.is_empty());
     }
 
     #[test]

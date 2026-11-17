@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use repobell_lib::store::{Seen, Settings};
-use repobell_lib::watcher::{check_repositories, Cleanup, RepoLocks};
+use repobell_lib::watcher::{check_repositories, CheckProgress, Cleanup, RepoLocks};
 use tempfile::TempDir;
 
 fn git(dir: &Path, args: &[&str]) -> String {
@@ -85,6 +85,7 @@ fn news_counts_teammate_changes_only_and_undo_point_follows_head() {
         &BTreeMap::new(),
         &mut Cleanup::default(),
         &locks,
+        &|_| {},
     );
     assert!(!all_failed);
     let r = &repos[0];
@@ -105,6 +106,7 @@ fn news_counts_teammate_changes_only_and_undo_point_follows_head() {
         &BTreeMap::new(),
         &mut Cleanup::default(),
         &locks,
+        &|_| {},
     );
     assert_eq!(repos[0].new_count, 0);
     assert_eq!(repos[0].behind, 3);
@@ -116,14 +118,26 @@ fn news_counts_teammate_changes_only_and_undo_point_follows_head() {
         panic!("expected an update");
     };
     let undo_map: BTreeMap<PathBuf, _> = [(me.clone(), undo)].into_iter().collect();
-    let (repos, _) =
-        check_repositories(&settings, &seen, &undo_map, &mut Cleanup::default(), &locks);
+    let (repos, _) = check_repositories(
+        &settings,
+        &seen,
+        &undo_map,
+        &mut Cleanup::default(),
+        &locks,
+        &|_| {},
+    );
     assert!(repos[0].can_undo);
     std::fs::write(me.join("own.txt"), "x").unwrap();
     git(&me, &["add", "."]);
     git(&me, &["commit", "-q", "-m", "own"]);
-    let (repos, _) =
-        check_repositories(&settings, &seen, &undo_map, &mut Cleanup::default(), &locks);
+    let (repos, _) = check_repositories(
+        &settings,
+        &seen,
+        &undo_map,
+        &mut Cleanup::default(),
+        &locks,
+        &|_| {},
+    );
     assert!(!repos[0].can_undo, "HEAD moved, so undo is gone");
 
     // A side branch is reported.
@@ -134,6 +148,7 @@ fn news_counts_teammate_changes_only_and_undo_point_follows_head() {
         &BTreeMap::new(),
         &mut Cleanup::default(),
         &locks,
+        &|_| {},
     );
     assert!(!repos[0].on_main);
     assert_eq!(repos[0].branch.as_deref(), Some("side"));
@@ -163,6 +178,7 @@ fn a_deleted_remote_is_an_error_but_not_offline() {
         &BTreeMap::new(),
         &mut Cleanup::default(),
         &RepoLocks::default(),
+        &|_| {},
     );
     assert!(repos[0].error.is_some());
     assert_eq!(repos[0].error_kind.as_deref(), Some("not_found"));
@@ -198,6 +214,7 @@ fn offline_only_when_every_repo_can_not_reach_the_server() {
             &BTreeMap::new(),
             &mut Cleanup::default(),
             &RepoLocks::default(),
+            &|_| {},
         )
     };
     let (repos, offline) = check();
@@ -252,6 +269,7 @@ fn check(settings: &Settings, cleanup: &mut Cleanup) -> repobell_lib::watcher::R
         &BTreeMap::new(),
         cleanup,
         &RepoLocks::default(),
+        &|_| {},
     );
     repos.remove(0)
 }
@@ -404,4 +422,84 @@ fn second_delete_adds_to_the_undo_list_newest_first() {
         .map(|x| x.name.as_str())
         .collect();
     assert_eq!(names, ["b", "c", "a"]);
+}
+
+type Steps = Vec<CheckProgress>;
+
+fn run_with_steps(settings: &Settings) -> (Vec<repobell_lib::watcher::RepoCardView>, Steps) {
+    let steps = std::sync::Mutex::new(Vec::new());
+    let (repos, _) = check_repositories(
+        settings,
+        &Seen::new(),
+        &BTreeMap::new(),
+        &mut Cleanup::default(),
+        &RepoLocks::default(),
+        &|p| steps.lock().unwrap().push(p),
+    );
+    (repos, steps.into_inner().unwrap())
+}
+
+#[test]
+fn progress_counts_watched_repos_only() {
+    let tmp = TempDir::new().unwrap();
+    let watched = tmp.path().join("w");
+    let [_, b, _] =
+        ["a", "b", "c"].map(|n| repo_with_origin(&watched, n, "/nonexistent/remote.git"));
+    let settings = Settings {
+        folders: vec![watched],
+        ignored: vec![b],
+        ..Settings::default()
+    };
+    let (repos, steps) = run_with_steps(&settings);
+    let names: Vec<_> = repos.iter().map(|r| r.name.as_str()).collect();
+    assert_eq!(names, ["a", "b", "c"]);
+    assert_eq!(
+        steps[0],
+        CheckProgress {
+            done: 0,
+            total: 2,
+            current: "a".into()
+        }
+    );
+    assert!(steps.iter().all(|s| s.total == 2 && s.done < 2));
+    assert!(steps.windows(2).all(|w| w[0].done <= w[1].done));
+}
+
+#[test]
+fn no_progress_without_watched_repos() {
+    let tmp = TempDir::new().unwrap();
+    let watched = tmp.path().join("w");
+    let a = repo_with_origin(&watched, "a", "/nonexistent/remote.git");
+    let mut settings = Settings {
+        folders: vec![watched],
+        ignored: vec![a],
+        ..Settings::default()
+    };
+    assert!(run_with_steps(&settings).1.is_empty());
+    settings.folders.clear();
+    assert!(run_with_steps(&settings).1.is_empty());
+}
+
+#[test]
+fn server_answers_of_parallel_repos_are_all_kept() {
+    let (_t1, remote1, _m1, s1) = merged_feat();
+    let (_t2, remote2, _m2, s2) = merged_feat();
+    git(&remote1, &["branch", "-D", "feat"]);
+    git(&remote2, &["branch", "-D", "feat"]);
+    let settings = Settings {
+        folders: [s1.folders, s2.folders].concat(),
+        ..Settings::default()
+    };
+    let mut cleanup = Cleanup::default();
+    let (repos, _) = check_repositories(
+        &settings,
+        &Seen::new(),
+        &BTreeMap::new(),
+        &mut cleanup,
+        &RepoLocks::default(),
+        &|_| {},
+    );
+    assert_eq!(cleanup.server.len(), 2);
+    assert_eq!(repos.len(), 2);
+    assert!(repos.iter().all(|r| r.old_branches.len() == 1));
 }
