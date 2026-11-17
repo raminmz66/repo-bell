@@ -772,20 +772,33 @@ fn apply_tray(
         menu = menu.separator();
     }
     let check_item = MenuItem::with_id(app, "check_now", &label.0, label.1, None::<&str>)?;
-    let menu = menu
+    menu = menu
         .text("open", "Open RepoBell")
         .item(&check_item)
         .text("mark_seen", "Mark all as seen")
-        .separator()
-        .text("quit", "Quit")
-        .build()?;
+        .separator();
+    if let Some(text) = &model.install {
+        menu = menu.item(&MenuItem::with_id(
+            app,
+            "install_update",
+            text,
+            true,
+            None::<&str>,
+        )?);
+    }
+    let menu = menu.text("quit", "Quit").build()?;
     tray.set_menu(Some(menu))?;
     Ok(check_item)
 }
 
 /// Pushes the state to the tray (only when its labels or icon changed) and to the window.
 pub fn publish(app: &AppHandle, st: &mut EngineState) {
-    let model = news::tray_model(&st.repos, st.folder_errors().len(), st.offline);
+    let mut model = news::tray_model(&st.repos, st.folder_errors().len(), st.offline);
+    model.install = st
+        .update
+        .pending
+        .as_ref()
+        .map(|u| news::install_label(&u.version));
     let label = news::check_now_label(st.progress.as_ref());
     if st.tray.as_ref() != Some(&model) {
         if let Some(tray) = app.tray_by_id("main-tray") {

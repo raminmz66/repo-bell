@@ -96,9 +96,16 @@ pub struct TrayModel {
     /// (menu id, label); the id is `repo:<path>`.
     pub lines: Vec<(String, String)>,
     pub more: Option<String>,
+    /// "Install RepoBell x.y.z…", set by `publish` when an update is known.
+    pub install: Option<String>,
 }
 
 pub const TRAY_MAX_LINES: usize = 5;
+
+/// The tray line that opens the About page when an update is known.
+pub fn install_label(version: &str) -> String {
+    format!("Install RepoBell {version}…")
+}
 
 /// The "Check now" tray item: its text and whether it can be clicked.
 pub fn check_now_label(progress: Option<&CheckProgress>) -> (String, bool) {
@@ -149,6 +156,7 @@ pub fn tray_model(repos: &[RepoCardView], missing_folders: usize, offline: bool)
         headline: headline(&s, offline),
         lines,
         more,
+        install: None,
     }
 }
 
@@ -271,6 +279,12 @@ mod tests {
         let quiet = tray_model(&[repo("quiet", 0)], 0, false);
         assert_eq!(quiet.icon, TrayIcon::Quiet);
         assert_eq!(tray_model(&[], 0, true).icon, TrayIcon::CantCheck);
+        assert_eq!(m.install, None);
+    }
+
+    #[test]
+    fn install_label_names_the_version() {
+        assert_eq!(install_label("0.2.0"), "Install RepoBell 0.2.0…");
     }
 
     #[test]

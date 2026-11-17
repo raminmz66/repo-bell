@@ -129,6 +129,12 @@ pub fn run() {
                                         show_and_position_window(&w);
                                     }
                                 }
+                                "install_update" => {
+                                    if let Some(w) = app.get_webview_window("main") {
+                                        show_and_position_window(&w);
+                                        let _ = w.emit("open-about", ());
+                                    }
+                                }
                                 "quit" => app.exit(0),
                                 "check_now" => {
                                     let (engine, app) = (engine.clone(), app.clone());
