@@ -190,6 +190,15 @@
     };
   });
 
+  // Screen readers hear only the start and the end of a check, not every step.
+  let checkStatus = "";
+  let wasChecking = false;
+  function trackProgress(on: boolean) {
+    if (on && !wasChecking) checkStatus = "Checking your repos";
+    else if (!on && wasChecking) checkStatus = "Check finished";
+    wasChecking = on;
+  }
+
   // Repos that are up to date and need nothing from the user stay tucked away.
   const isPlain = (r: RepoCardView) => r.on_main && r.behind === 0 && !r.can_undo;
 
@@ -218,8 +227,9 @@
   $: firstCheck = !!state && state.checking && state.last_checked === null;
   $: isChecking = localChecking || !!state?.checking;
   $: checkedAgo = state?.last_checked ? timeAgo(state.last_checked, now) : "";
-  $: lastChecked = state?.checking ? "Checking…" : checkedAgo ? `Last checked ${checkedAgo}` : "";
-  $: subline = state?.checking ? "Checking…" : checkedAgo ? `Checked ${checkedAgo}` : "";
+  $: lastChecked = checkedAgo ? `Last checked ${checkedAgo}` : "";
+  $: subline = checkedAgo ? `Checked ${checkedAgo}` : "";
+  $: trackProgress(!!state?.progress);
   $: errorTitle = [
     errorRepos.length > 0 ? `${errorRepos.length} ${plural(errorRepos.length, "repo")} can't be checked` : "",
     folderErrors.length > 0 ? `${folderErrors.length} ${plural(folderErrors.length, "folder")} not found` : "",
@@ -310,6 +320,7 @@
   {:else}
     <Header title="RepoBell" isChecking={isChecking} onCheckNow={handleCheckNow} onOpenSettings={() => (currentView = "settings")} />
     {#if state.progress}<CheckStrip progress={state.progress} />{/if}
+    <p class="check-status visually-hidden" role="status">{checkStatus}</p>
 
     <div class="main-body">
       {#if notice}
@@ -418,6 +429,14 @@
     border-radius: 12px;
     background: #f6f6f4;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .loading-box {
     display: flex;

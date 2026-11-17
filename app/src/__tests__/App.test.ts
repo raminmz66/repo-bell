@@ -784,5 +784,61 @@ describe("App", () => {
       await screen.findByText("Folders and repos");
       expect(screen.queryByRole("progressbar")).toBeNull();
     });
+
+    const status = () => document.querySelector(".check-status");
+    const ago = () => Math.floor(Date.now() / 1000) - 120;
+
+    it("subline keeps the last check time while checking", async () => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return makeState({ checking: true, progress, last_checked: ago(), repos: [sideBranch, plain] }); });
+      render(App);
+      await screen.findByRole("heading", { level: 1, name: "All quiet" });
+      expect(document.querySelector(".headline-row")!.textContent).toContain("Checked 2 min ago");
+      expect(screen.queryByText("Checking…")).toBeNull();
+    });
+
+    it("big All quiet keeps the last check time while checking", async () => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return makeState({ checking: true, progress, last_checked: ago() }); });
+      render(App);
+      expect(await screen.findByText(/Last checked 2 min ago\./)).toBeInTheDocument();
+      expect(screen.queryByText("Checking…")).toBeNull();
+    });
+
+    it("announces only the start and the end", async () => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return makeState(); }, { shouldMockEvents: true });
+      render(App);
+      await screen.findByRole("heading", { level: 1, name: "All quiet" });
+      expect(status()).not.toBeNull();
+      expect(status()!.textContent).toBe("");
+      await emit("state-updated", makeState({ checking: true, progress: { done: 0, total: 15, current: "alpha" } }));
+      await waitFor(() => expect(status()!.textContent).toBe("Checking your repos"));
+      await emit("state-updated", makeState({ checking: true, progress: { done: 1, total: 15, current: "beta" } }));
+      await waitFor(() => expect(strip()!.textContent).toContain("Checking beta"));
+      expect(status()!.textContent).toBe("Checking your repos");
+      await emit("state-updated", makeState({ checking: false, progress: null }));
+      await waitFor(() => expect(status()!.textContent).toBe("Check finished"));
+      expect(status()!.closest(".check-strip")).toBeNull();
+    });
+
+    it("a step keeps an open row and its update preview", async () => {
+      const news = () => makeState({ repos: [makeRepo({ path: `${P}/web-app`, name: "web-app", behind: 2, new_count: 2, unsaved: false, feed: makeFeed() })] });
+      mockIPC(
+        (cmd) => {
+          if (cmd === "get_app_state") return news();
+          if (cmd === "preview_update")
+            return { kind: "fast_forward", downloads: 2, yours: 0, set_aside: false, message: "This will download 2 changes" };
+        },
+        { shouldMockEvents: true },
+      );
+      render(App);
+      const toggle = () => screen.getByRole("button", { name: /^web-app\b/ });
+      await screen.findByRole("heading", { level: 2, name: /^News/ });
+      expect(toggle()).toHaveAttribute("aria-expanded", "true");
+      await fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+      await screen.findByRole("group", { name: "Update preview" });
+      await emit("state-updated", { ...news(), checking: true, progress });
+      await screen.findByRole("progressbar", { name: "Check progress" });
+      expect(toggle()).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("group", { name: "Update preview" })).toBeInTheDocument();
+    });
   });
 });
