@@ -1,5 +1,9 @@
 <script lang="ts">
+  import type { UpdateView } from "./types";
+
   export let onAddFolder: () => void;
+  export let update: UpdateView | null = null;
+  export let onOpenAbout: () => void = () => {};
 </script>
 
 <footer class="app-footer">
@@ -9,6 +13,11 @@
     </svg>
     Add folder
   </button>
+  {#if update?.can_update && update.available}
+    <button class="foot-update" onclick={onOpenAbout}>
+      <span class="pip" aria-hidden="true"></span>RepoBell {update.available.version} is ready
+    </button>
+  {/if}
 </footer>
 
 <style>
@@ -39,5 +48,29 @@
   }
   .btn-add-folder:hover {
     background: #f3f3f1;
+  }
+  .foot-update {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #1f5fd1;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .foot-update:hover {
+    background: #f0f5fd;
+  }
+  .pip {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #5b5b66;
   }
 </style>

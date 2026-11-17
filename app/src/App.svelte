@@ -22,6 +22,8 @@
   let showUpToDate = false;
   let notice: string | null = null;
   let now = Date.now();
+  // Each bump is one request to jump to About; the gear resets it so Settings opens at the top.
+  let aboutRequest = 0;
   let highlightPath: string | null = null;
   // The first-run wizard stays up until its last step, even after settings are saved.
   let wizardActive = false;
@@ -155,6 +157,16 @@
     document.querySelector<HTMLElement>('button[aria-label="Settings"]')?.focus();
   }
 
+  function openSettings() {
+    aboutRequest = 0;
+    currentView = "settings";
+  }
+
+  function openAbout() {
+    currentView = "settings";
+    aboutRequest += 1;
+  }
+
   function finishWizard() {
     wizardActive = false;
     loadState();
@@ -182,8 +194,11 @@
       }, 2200);
     });
 
+    const unlistenAbout = listen("open-about", openAbout);
+
     return () => {
       clearInterval(tick);
+      unlistenAbout.then((f) => f());
       unlistenState.then((f) => f());
       unlistenShown.then((f) => f());
       unlistenFocus.then((f) => f());
@@ -316,9 +331,9 @@
   {:else if wizardActive}
     <WelcomeView onFinish={finishWizard} />
   {:else if currentView === "settings"}
-    <SettingsView {state} onBack={closeSettings} onStateRefresh={loadState} />
+    <SettingsView {state} {now} {aboutRequest} onBack={closeSettings} onStateRefresh={loadState} />
   {:else}
-    <Header title="RepoBell" isChecking={isChecking} onCheckNow={handleCheckNow} onOpenSettings={() => (currentView = "settings")} />
+    <Header title="RepoBell" isChecking={isChecking} onCheckNow={handleCheckNow} onOpenSettings={openSettings} />
     {#if state.progress}<CheckStrip progress={state.progress} />{/if}
     <p class="check-status visually-hidden" role="status">{checkStatus}</p>
 
@@ -379,7 +394,7 @@
         <div class="empty-center">
           {#if state.repos.length > 0}
             <p class="headline-desc">You're not watching any repos. Turn one on in Settings.</p>
-            <button class="btn-primary" onclick={() => (currentView = "settings")}>Open Settings</button>
+            <button class="btn-primary" onclick={openSettings}>Open Settings</button>
           {:else}
             <p class="headline-desc">No repos found yet. Add a folder to start watching.</p>
             <button class="btn-primary" onclick={handleAddFolder}>Add folder</button>
@@ -401,7 +416,7 @@
       {#if !state.offline && !firstCheck}{@render quietGroups()}{/if}
     </div>
 
-    <Footer onAddFolder={handleAddFolder} />
+    <Footer onAddFolder={handleAddFolder} update={state.update} onOpenAbout={openAbout} />
   {/if}
 </main>
 

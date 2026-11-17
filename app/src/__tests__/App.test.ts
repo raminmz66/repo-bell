@@ -3,7 +3,7 @@ import { render, fireEvent, screen, waitFor, within } from "@testing-library/sve
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
 import App from "../App.svelte";
-import { makeRepo, makeFeed, makeState } from "../test-helpers";
+import { makeRepo, makeFeed, makeState, makeUpdate } from "../test-helpers";
 
 const P = "/home/user/projects";
 
@@ -46,6 +46,65 @@ describe("App", () => {
       await screen.findByText("Folders and repos");
       await fireEvent.keyDown(window, { key: "Escape" });
       await screen.findByRole("button", { name: "Settings" });
+    });
+  });
+
+  describe("about", () => {
+    const readyState = (overrides = {}) =>
+      makeState({ update: makeUpdate({ status: "ready", available: { version: "0.2.0", notes: "" } }), ...overrides });
+    const READY = "RepoBell 0.2.0 is ready";
+    const aboutHeading = () => screen.getByRole("heading", { name: "About" });
+    const boot = (state = readyState(), opts?: { shouldMockEvents?: boolean }) => {
+      Element.prototype.scrollIntoView = vi.fn();
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state") return state;
+        if (cmd === "detect_editors") return ["VS Code"];
+        if (cmd === "discover_suggested_folders") return [];
+      }, opts);
+      render(App);
+    };
+
+    it("the footer button opens Settings with About focused", async () => {
+      boot();
+      await fireEvent.click(await screen.findByRole("button", { name: READY }));
+      await screen.findByText("Folders and repos");
+      await waitFor(() => expect(aboutHeading()).toHaveFocus());
+    });
+
+    it("open-about opens About, also when Settings is open", async () => {
+      boot(readyState(), { shouldMockEvents: true });
+      await screen.findByRole("button", { name: READY });
+      await emit("open-about");
+      await screen.findByText("Folders and repos");
+      await waitFor(() => expect(aboutHeading()).toHaveFocus());
+
+      screen.getByRole("button", { name: "Back" }).focus();
+      expect(aboutHeading()).not.toHaveFocus();
+      await emit("open-about");
+      await waitFor(() => expect(aboutHeading()).toHaveFocus());
+    });
+
+    it("the gear opens Settings at the top after a jump", async () => {
+      boot();
+      await fireEvent.click(await screen.findByRole("button", { name: READY }));
+      await waitFor(() => expect(aboutHeading()).toHaveFocus());
+      await fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      const gear = await screen.findByRole("button", { name: "Settings" });
+      await waitFor(() => expect(gear).toHaveFocus());
+
+      const scrolled = vi.mocked(Element.prototype.scrollIntoView);
+      scrolled.mockClear();
+      await fireEvent.click(gear);
+      await screen.findByText("Folders and repos");
+      await new Promise((r) => setTimeout(r, 20));
+      expect(aboutHeading()).not.toHaveFocus();
+      expect(scrolled).not.toHaveBeenCalled();
+    });
+
+    it("no footer button during the welcome", async () => {
+      boot(readyState({ first_run: true, repos: [] }));
+      await screen.findByText("Welcome to RepoBell");
+      expect(screen.queryByRole("button", { name: READY })).not.toBeInTheDocument();
     });
   });
 
