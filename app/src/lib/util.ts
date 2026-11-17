@@ -24,7 +24,7 @@ export function checkedAt(timestamp: number, now: number = Date.now()): string {
   return `on ${d.getDate()} ${MONTHS[d.getMonth()]} at ${time}`;
 }
 
-/** `timeAgo` without " ago",and "now" for "just now": "5 min", "2 h", "3 d". */
+/** `timeAgo` without " ago", and "now" for "just now": "5 min", "2 h", "3 d". */
 export function shortTimeAgo(timestamp: number | null, now: number = Date.now()): string {
   return timeAgo(timestamp, now).replace(" ago", "").replace("just now", "now");
 }

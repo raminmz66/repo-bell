@@ -95,6 +95,12 @@ pub fn run() {
             move |app| {
                 let handle = app.handle().clone();
 
+                // Set first, so nothing below can read an empty update state.
+                engine.state.blocking_lock().update = updates::UpdateState::for_bundle(
+                    app.package_info().version.to_string(),
+                    tauri::utils::platform::bundle_type(),
+                );
+
                 if let Some(w) = app.get_webview_window("main") {
                     show_and_position_window(&w);
                 }
@@ -160,11 +166,6 @@ pub fn run() {
                         }
                     })
                     .build(app)?;
-
-                engine.state.blocking_lock().update = updates::UpdateState::for_bundle(
-                    app.package_info().version.to_string(),
-                    tauri::utils::platform::bundle_type(),
-                );
 
                 // The first check (and every later one) runs in the background.
                 tauri::async_runtime::spawn(watcher::scheduler(handle.clone(), engine.clone()));

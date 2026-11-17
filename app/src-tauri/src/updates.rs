@@ -274,11 +274,10 @@ pub async fn install_update(app: AppHandle, engine: State<'_, SharedEngine>) -> 
 
 /// Puts a failed download or install back to Ready with the reason. The state lock is never held
 /// across the download or the install.
-async fn fail_install(app: &AppHandle, engine: &SharedEngine, e: &Error, installing: bool) {
-    eprintln!("repobell: update install failed: {e}");
+async fn fail_install(app: &AppHandle, engine: &SharedEngine, error: UpdateError) {
     let mut st = engine.state.lock().await;
     st.update.status = UpdateStatus::Ready;
-    st.update.error = Some(error_for(e, installing));
+    st.update.error = Some(error);
     publish(app, &mut st);
 }
 
@@ -300,7 +299,10 @@ async fn install(app: AppHandle, engine: SharedEngine, update: Update) {
     };
     let bytes = match update.download(progress, || {}).await {
         Ok(b) => b,
-        Err(e) => return fail_install(&app, &engine, &e, false).await,
+        Err(e) => {
+            eprintln!("repobell: update install failed: {e}");
+            return fail_install(&app, &engine, error_for(&e, false)).await;
+        }
     };
     {
         let mut st = engine.state.lock().await;
@@ -309,14 +311,14 @@ async fn install(app: AppHandle, engine: SharedEngine, update: Update) {
     }
     match tauri::async_runtime::spawn_blocking(move || update.install(bytes)).await {
         Ok(Ok(())) => app.restart(),
-        Ok(Err(e)) => fail_install(&app, &engine, &e, true).await,
+        Ok(Err(e)) => {
+            eprintln!("repobell: update install failed: {e}");
+            fail_install(&app, &engine, error_for(&e, true)).await;
+        }
         // The install task panicked or was cancelled.
         Err(e) => {
             eprintln!("repobell: update install task failed: {e}");
-            let mut st = engine.state.lock().await;
-            st.update.status = UpdateStatus::Ready;
-            st.update.error = Some(UpdateError::NotInstalled);
-            publish(&app, &mut st);
+            fail_install(&app, &engine, UpdateError::NotInstalled).await;
         }
     }
 }
@@ -345,9 +347,6 @@ pub fn open_link(target: String) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
-    use tauri::utils::config::BundleType;
-    use tauri_plugin_updater::Error;
 
     fn io() -> Error {
         Error::Io(std::io::Error::other("x"))
