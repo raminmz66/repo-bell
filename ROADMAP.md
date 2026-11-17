@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: About and in-app updates are built and reviewed; next is the local end-to-end updater test, then release v0.1.0 and make the repo public.
+Current step: About and in-app updates are built, reviewed and tested end to end (2026-11-17). Next: release v0.1.0, make the repo public, then a v0.1.1 test update before telling teammates.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups).
 
@@ -88,7 +88,7 @@ Each screen gets a senior UI/UX review before it is marked done.
   - [x] Design (`docs/superpowers/specs/2026-11-17-about-and-updates-design.md`)
   - [x] Plan
   - [x] Build
-  - [ ] End-to-end updater test
+  - [x] End-to-end updater test (2026-11-17: AppImage and .deb, offline, tampered download, guard during download)
   - [ ] Release v0.1.0
   - [ ] Make the repo public
   - [ ] Release v0.1.1 and update from the app
