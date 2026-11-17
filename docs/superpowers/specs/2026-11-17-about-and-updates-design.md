@@ -384,7 +384,7 @@ End-to-end before release, on Ramin's machine, with no code change (only `--conf
 6. Bad signature (Claude): append one byte to the served AppImage, restart the old one, Install. Expect "didn't pass the safety check" and the old file unchanged.
 7. Offline (Claude): stop the server, press Check for updates. Expect "Can't reach GitHub…". Restart with the server still stopped and confirm no error shows.
 8. .deb (Ramin, it replaces the installed RepoBell): install the old .deb, Install, close the password window twice. Expect "Update not installed." Then Try again, enter the password. Expect the restart on 0.1.1. Reinstall the normal build afterwards.
-9. Busy: start an Update on a repo with unsaved changes, then open About. Expect Install disabled with the reason.
+9. Busy: start an Update on a repo with unsaved changes, then open About. Expect Install disabled with the reason. Also, while an update downloads, click Update on a repo row: expect "RepoBell is installing an update and will restart in a moment." and nothing runs.
 
 After go-live, one real smoke test before telling teammates (see Go-live, step 9). It costs one extra release (about 15 minutes of CI and a version number). It is the only test of the real key, the real secret and the GitHub URLs.
 
