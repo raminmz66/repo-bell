@@ -1,4 +1,4 @@
-import type { AppStateView, RepoCardView, FeedSummary } from "./lib/types";
+import type { AppStateView, RepoCardView, FeedSummary, UpdateView } from "./lib/types";
 
 export function makeRepo(overrides: Partial<RepoCardView> = {}): RepoCardView {
   return {
@@ -39,6 +39,22 @@ export function makeFeed(overrides: Partial<FeedSummary> = {}): FeedSummary {
   };
 }
 
+export function makeUpdate(overrides: Partial<UpdateView> = {}): UpdateView {
+  return {
+    current: "0.1.0",
+    can_update: true,
+    deb: true,
+    status: "idle",
+    checked_at: null,
+    available: null,
+    downloaded: 0,
+    total: null,
+    error: null,
+    busy: false,
+    ...overrides,
+  };
+}
+
 export function makeState(overrides: Partial<AppStateView> = {}): AppStateView {
   return {
     first_run: false,
@@ -60,6 +76,7 @@ export function makeState(overrides: Partial<AppStateView> = {}): AppStateView {
       start_at_login: true,
     },
     repos: [makeRepo({ path: "/home/user/projects/repo-one", name: "repo-one" })],
+    update: makeUpdate(),
     ...overrides,
   };
 }

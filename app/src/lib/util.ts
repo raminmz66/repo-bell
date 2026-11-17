@@ -10,7 +10,21 @@ export function timeAgo(timestamp: number | null, now: number = Date.now()): str
   return `${Math.floor(hours / 24)} d ago`;
 }
 
-/** `timeAgo` without " ago", and "now" for "just now": "5 min", "2 h", "3 d". */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "today at 09:12", "yesterday at 23:59", "on 14 Nov at 09:12". Local time. `timestamp` is in seconds, `now` in milliseconds. */
+export function checkedAt(timestamp: number, now: number = Date.now()): string {
+  const d = new Date(timestamp * 1000);
+  const n = new Date(now);
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(d, n)) return `today at ${time}`;
+  if (sameDay(d, new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1))) return `yesterday at ${time}`;
+  return `on ${d.getDate()} ${MONTHS[d.getMonth()]} at ${time}`;
+}
+
+/** `timeAgo` without " ago",and "now" for "just now": "5 min", "2 h", "3 d". */
 export function shortTimeAgo(timestamp: number | null, now: number = Date.now()): string {
   return timeAgo(timestamp, now).replace(" ago", "").replace("just now", "now");
 }

@@ -74,6 +74,19 @@ export interface CheckProgress {
   current: string;
 }
 
+export interface UpdateView {
+  current: string; // "0.1.0"
+  can_update: boolean;
+  deb: boolean;
+  status: "idle" | "checking" | "up_to_date" | "ready" | "downloading" | "installing";
+  checked_at: number | null; // Unix seconds
+  available: { version: string; notes: string } | null; // set while an update is pending
+  downloaded: number; // bytes
+  total: number | null;
+  error: "offline" | "download_failed" | "bad_download" | "not_installed" | null;
+  busy: boolean; // a repo action is running
+}
+
 export interface AppStateView {
   repos: RepoCardView[];
   settings: Settings;
@@ -87,6 +100,7 @@ export interface AppStateView {
   error_repos: number;
   folder_errors: FolderError[];
   progress: CheckProgress | null;
+  update: UpdateView;
 }
 
 export interface PlanView {
