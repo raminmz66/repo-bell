@@ -33,12 +33,26 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - name: Build
         working-directory: app
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
           npm ci
-          npm run tauri build
+          npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":true}}' 2>&1 | tee build.log
+          if grep -E "does not match the public key|Failed to add bundler type" build.log; then exit 1; fi
+      - name: Release notes
+        run: |
+          git fetch --force origin "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          if [ "$(git cat-file -t "$GITHUB_REF_NAME")" = tag ]; then
+            git tag -l --format='%(contents:subject)%0a%(contents:body)' "$GITHUB_REF_NAME" > notes.txt
+          else
+            : > notes.txt
+          fi
+      - name: Release files
+        run: scripts/release-files.sh "$GITHUB_REF_NAME" notes.txt "https://github.com/raminmz66/repo-bell/releases/download/$GITHUB_REF_NAME" release-files
       - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          files: |
-            target/release/bundle/deb/*.deb
-            target/release/bundle/appimage/*.AppImage
+          body_path: notes.txt
+          files: release-files/*
