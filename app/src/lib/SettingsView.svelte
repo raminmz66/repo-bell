@@ -2,12 +2,15 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import Header from "./Header.svelte";
+  import AboutSection from "./AboutSection.svelte";
   import type { AppStateView, Settings, RepoCardView } from "./types";
   import { errText, plural, tildePath } from "./util";
 
   export let state: AppStateView;
   export let onBack: () => void;
   export let onStateRefresh: () => void;
+  export let now: number = Date.now();
+  export let aboutRequest = 0;
 
   const SAVED_BUT = "Your settings were saved, but";
 
@@ -307,6 +310,8 @@
         <p class="msg-error" role="alert">{autostartError}</p>
       {/if}
     </section>
+
+    <AboutSection update={state.update} {now} {aboutRequest} />
   </div>
 </div>
 
