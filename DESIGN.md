@@ -110,7 +110,6 @@ components:
   check-strip:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink-soft}"
-    typography: "{typography.label}"
     padding: "8px 16px 9px"
   badge-new:
     backgroundColor: "{colors.accent}"

@@ -28,7 +28,7 @@ RepoBell keeps two small JSON files in the standard Linux folders. Settings (fol
 
 ## Checking for news
 
-RepoBell checks every 5 minutes by default. Settings offers 1, 5, 15, 30 and 60 minutes, and "Check now" is always available. Each check fetches only the main branch, and up to 4 repos are checked at the same time. After an error the wait doubles (5, 10, 20 minutes and so on) until a check works again. This keeps news fresh without heavy network use or battery drain.
+RepoBell checks every 5 minutes by default. Settings offers 1, 5, 15, 30 and 60 minutes, and "Check now" is always available, except while a check runs. Each check fetches only the main branch, and up to 4 repos are checked at the same time. After an error the wait doubles (5, 10, 20 minutes and so on) until a check works again. This keeps news fresh without heavy network use or battery drain.
 
 ## v1 features
 
