@@ -3,6 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import Header from "./lib/Header.svelte";
+  import CheckStrip from "./lib/CheckStrip.svelte";
   import Footer from "./lib/Footer.svelte";
   import RepoCard from "./lib/RepoCard.svelte";
   import FolderErrorCard from "./lib/FolderErrorCard.svelte";
@@ -308,6 +309,7 @@
     <SettingsView {state} onBack={closeSettings} onStateRefresh={loadState} />
   {:else}
     <Header title="RepoBell" isChecking={isChecking} onCheckNow={handleCheckNow} onOpenSettings={() => (currentView = "settings")} />
+    {#if state.progress}<CheckStrip progress={state.progress} />{/if}
 
     <div class="main-body">
       {#if notice}

@@ -50,6 +50,7 @@ export function makeState(overrides: Partial<AppStateView> = {}): AppStateView {
     news_changes: 0,
     error_repos: 0,
     folder_errors: [],
+    progress: null,
     settings: {
       folders: ["/home/user/projects"],
       ignored: [],

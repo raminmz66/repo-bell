@@ -737,4 +737,52 @@ describe("App", () => {
       await waitFor(() => expect(screen.getByText("quiet-one")).toBeInTheDocument());
     });
   });
+
+  describe("check progress", () => {
+    const progress = { done: 6, total: 15, current: "alpha" };
+    const strip = () => document.querySelector(".check-strip");
+    const sideBranch = makeRepo({ path: `${P}/side`, name: "side", on_main: false, branch: "feature-x", main_behind: 2 });
+    const plain = makeRepo({ path: `${P}/plain`, name: "plain" });
+
+    it.each([
+      ["news view", () => ({ ...newsState(), progress })],
+      ["compact All quiet", () => makeState({ progress, repos: [sideBranch, plain] })],
+      ["big All quiet", () => makeState({ progress })],
+      ["offline", () => makeState({ offline: true, progress })],
+      ["first run", () => makeState({ checking: true, last_checked: null, progress })],
+    ])("shows the strip in the %s", async (_name, make) => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return make(); });
+      render(App);
+      const bar = await screen.findByRole("progressbar", { name: "Check progress" });
+      expect(strip()!.textContent).toContain("Checking alpha");
+      expect(strip()!.textContent).toContain("6 of 15");
+      expect(bar).toHaveAttribute("aria-valuemin", "0");
+      expect(bar).toHaveAttribute("aria-valuemax", "15");
+      expect(bar).toHaveAttribute("aria-valuenow", "6");
+      expect(bar).toHaveAttribute("aria-valuetext", "6 of 15");
+      expect((strip()!.querySelector(".strip-fill") as HTMLElement).style.width).toBe("40%");
+    });
+
+    it("shows the strip from a state-updated event and removes it when progress is null", async () => {
+      mockIPC((cmd) => { if (cmd === "get_app_state") return makeState(); }, { shouldMockEvents: true });
+      render(App);
+      await screen.findByRole("heading", { level: 1, name: "All quiet" });
+      expect(strip()).toBeNull();
+      await emit("state-updated", makeState({ checking: true, progress }));
+      await screen.findByRole("progressbar", { name: "Check progress" });
+      await emit("state-updated", makeState({ progress: null }));
+      await waitFor(() => expect(strip()).toBeNull());
+    });
+
+    it("no strip in Settings", async () => {
+      mockIPC((cmd) => {
+        if (cmd === "get_app_state") return makeState({ progress });
+        if (cmd === "detect_editors") return ["VS Code"];
+      });
+      render(App);
+      await fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+      await screen.findByText("Folders and repos");
+      expect(screen.queryByRole("progressbar")).toBeNull();
+    });
+  });
 });

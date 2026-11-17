@@ -68,6 +68,12 @@ export interface FolderError {
   message: string;
 }
 
+export interface CheckProgress {
+  done: number;
+  total: number;
+  current: string;
+}
+
 export interface AppStateView {
   repos: RepoCardView[];
   settings: Settings;
@@ -80,6 +86,7 @@ export interface AppStateView {
   news_changes: number;
   error_repos: number;
   folder_errors: FolderError[];
+  progress: CheckProgress | null;
 }
 
 export interface PlanView {
