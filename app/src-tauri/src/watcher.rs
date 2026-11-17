@@ -655,10 +655,7 @@ pub fn check_repositories(
         CHECK_WORKERS,
         |&path| {
             let fetch_error = fetch_repo(path);
-            let mut local: BTreeMap<PathBuf, ServerBranches> = server
-                .get(path)
-                .map(|e| BTreeMap::from([(path.clone(), e.clone())]))
-                .unwrap_or_default();
+            let mut local = one_entry(server, path);
             // A failed fetch just showed the server can't answer: don't wait on it again.
             if fetch_error.is_none() {
                 if let Ok(st) = repobell_core::status(path) {
@@ -670,7 +667,7 @@ pub fn check_repositories(
             let _guard = lock.blocking_lock();
             let one = Cleanup {
                 server: local,
-                undo: undo_entry(&cleanup.undo, path),
+                undo: one_entry(&cleanup.undo, path),
             };
             let ctx = Ctx {
                 settings,
@@ -711,12 +708,10 @@ pub fn check_repositories(
     (views, offline)
 }
 
-fn undo_entry(
-    undo: &BTreeMap<PathBuf, Vec<DeletedBranch>>,
-    path: &Path,
-) -> BTreeMap<PathBuf, Vec<DeletedBranch>> {
-    undo.get(path)
-        .map(|d| BTreeMap::from([(path.to_path_buf(), d.clone())]))
+/// A map holding only the cached entry for `path`, so one repo's work never touches the rest.
+pub fn one_entry<V: Clone>(map: &BTreeMap<PathBuf, V>, path: &Path) -> BTreeMap<PathBuf, V> {
+    map.get(path)
+        .map(|v| BTreeMap::from([(path.to_path_buf(), v.clone())]))
         .unwrap_or_default()
 }
 
@@ -796,9 +791,10 @@ pub fn publish(app: &AppHandle, st: &mut EngineState) {
     // Also runs when the rebuild above failed, so the item never keeps an old label.
     if st.check_label.as_ref() != Some(&label) {
         if let Some(item) = &st.check_item {
-            let _ = item.set_text(&label.0);
-            let _ = item.set_enabled(label.1);
-            st.check_label = Some(label);
+            // Cache the label only when it applied, so a failed update is retried next time.
+            if item.set_text(&label.0).is_ok() && item.set_enabled(label.1).is_ok() {
+                st.check_label = Some(label);
+            }
         }
     }
     let _ = app.emit("state-updated", st.to_view());

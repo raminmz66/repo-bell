@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -505,15 +504,7 @@ pub async fn refresh_old_branches(
     ensure_watched(&engine, &path).await?;
     let engine = engine.inner();
     let main = main_branch_of(engine, &path).await;
-    let mut local: BTreeMap<PathBuf, watcher::ServerBranches> = engine
-        .state
-        .lock()
-        .await
-        .cleanup
-        .server
-        .get(&path)
-        .map(|e| BTreeMap::from([(path.clone(), e.clone())]))
-        .unwrap_or_default();
+    let mut local = watcher::one_entry(&engine.state.lock().await.cleanup.server, &path);
     let (p, now) = (path.clone(), watcher::now_seconds());
     let local = blocking(move || {
         watcher::refresh_server_branches(&p, &main, &mut local, now, true);
