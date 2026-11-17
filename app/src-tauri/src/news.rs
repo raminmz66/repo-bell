@@ -1,7 +1,7 @@
 //! The "what counts as news" rule and everything built from it (docs/decisions.md).
 //! One rule feeds the tray dot, the tray headline, the tray lines and the window headline.
 
-use crate::watcher::RepoCardView;
+use crate::watcher::{CheckProgress, RepoCardView};
 
 /// A repo is news when it can be checked and teammates added changes since the user last looked.
 /// Muted repos still count (muting only silences notifications). Own changes never count.
@@ -100,6 +100,14 @@ pub struct TrayModel {
 
 pub const TRAY_MAX_LINES: usize = 5;
 
+/// The "Check now" tray item: its text and whether it can be clicked.
+pub fn check_now_label(progress: Option<&CheckProgress>) -> (String, bool) {
+    match progress {
+        None => ("Check now".to_string(), true),
+        Some(p) => (format!("Checking {} of {}…", p.done, p.total), false),
+    }
+}
+
 pub fn tray_model(repos: &[RepoCardView], missing_folders: usize, offline: bool) -> TrayModel {
     let s = summarize(repos, missing_folders);
     let icon = if offline {
@@ -156,6 +164,20 @@ mod tests {
             new_count,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn check_now_label_follows_progress() {
+        assert_eq!(check_now_label(None), ("Check now".to_string(), true));
+        let p = CheckProgress {
+            done: 6,
+            total: 15,
+            current: "alpha".into(),
+        };
+        assert_eq!(
+            check_now_label(Some(&p)),
+            ("Checking 6 of 15…".to_string(), false)
+        );
     }
 
     #[test]

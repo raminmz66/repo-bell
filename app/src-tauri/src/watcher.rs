@@ -103,6 +103,8 @@ pub struct AppStateView {
     pub first_run: bool,
     /// True while a check is running.
     pub checking: bool,
+    /// How far the running check is; `None` when no check runs.
+    pub progress: Option<CheckProgress>,
     /// The window's headline; the same rule as the tray headline.
     pub headline: String,
     pub news_repos: usize,
@@ -159,7 +161,13 @@ pub struct EngineState {
     /// Checks in a row where no server could be reached.
     pub failures: u32,
     pub checking: bool,
+    /// How far the running check is. Cleared when the check ends.
+    pub progress: Option<CheckProgress>,
     pub tray: Option<TrayModel>,
+    /// The tray's "Check now" item, so a step can change its text without rebuilding the menu.
+    pub check_item: Option<MenuItem<tauri::Wry>>,
+    /// The text and enabled flag last put on `check_item`.
+    pub check_label: Option<(String, bool)>,
 }
 
 /// One lock per repo, so a check never runs Git on a repo while an update or undo does.
@@ -231,7 +239,10 @@ impl EngineState {
             generation: 0,
             failures: 0,
             checking: false,
+            progress: None,
             tray: None,
+            check_item: None,
+            check_label: None,
         }
     }
 
@@ -258,6 +269,7 @@ impl EngineState {
             offline: self.offline,
             first_run: !self.settings.setup_done,
             checking: self.checking,
+            progress: self.progress.clone(),
             headline: news::headline(&s, self.offline),
             news_repos: s.news_repos,
             news_changes: s.news_changes,
@@ -732,7 +744,12 @@ fn tray_image(icon: IconKind) -> tauri::Result<Image<'static>> {
     Image::from_bytes(bytes)
 }
 
-fn apply_tray(app: &AppHandle, tray: &TrayIcon, model: &TrayModel) -> tauri::Result<()> {
+fn apply_tray(
+    app: &AppHandle,
+    tray: &TrayIcon,
+    model: &TrayModel,
+    label: &(String, bool),
+) -> tauri::Result<MenuItem<tauri::Wry>> {
     tray.set_icon(Some(tray_image(model.icon)?))?;
     let headline = MenuItem::with_id(app, "headline", &model.headline, false, None::<&str>)?;
     let mut menu = MenuBuilder::new(app).item(&headline).separator();
@@ -751,24 +768,35 @@ fn apply_tray(app: &AppHandle, tray: &TrayIcon, model: &TrayModel) -> tauri::Res
     if !model.lines.is_empty() {
         menu = menu.separator();
     }
+    let check_item = MenuItem::with_id(app, "check_now", &label.0, label.1, None::<&str>)?;
     let menu = menu
         .text("open", "Open RepoBell")
-        .text("check_now", "Check now")
+        .item(&check_item)
         .text("mark_seen", "Mark all as seen")
         .separator()
         .text("quit", "Quit")
         .build()?;
-    tray.set_menu(Some(menu))
+    tray.set_menu(Some(menu))?;
+    Ok(check_item)
 }
 
 /// Pushes the state to the tray (only when its labels or icon changed) and to the window.
 pub fn publish(app: &AppHandle, st: &mut EngineState) {
     let model = news::tray_model(&st.repos, st.folder_errors().len(), st.offline);
+    let label = news::check_now_label(st.progress.as_ref());
     if st.tray.as_ref() != Some(&model) {
         if let Some(tray) = app.tray_by_id("main-tray") {
-            if apply_tray(app, &tray, &model).is_ok() {
+            if let Ok(item) = apply_tray(app, &tray, &model, &label) {
                 st.tray = Some(model);
+                st.check_item = Some(item);
+                st.check_label = Some(label);
             }
+        }
+    } else if st.check_label.as_ref() != Some(&label) {
+        if let Some(item) = &st.check_item {
+            let _ = item.set_text(&label.0);
+            let _ = item.set_enabled(label.1);
+            st.check_label = Some(label);
         }
     }
     let _ = app.emit("state-updated", st.to_view());
@@ -812,15 +840,30 @@ async fn check_once(app: &AppHandle, engine: &SharedEngine) {
         )
     };
     let eng = engine.clone();
+    let app_for_progress = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let mut cleanup = cleanup;
-        let r = check_repositories(&settings, &seen, &undo, &mut cleanup, &eng.locks, &|_| {});
+        // Runs on a worker thread with the pool's lock held: take the state lock, publish, return.
+        let on_progress = |p: CheckProgress| {
+            let mut st = eng.state.blocking_lock();
+            st.progress = Some(p);
+            publish(&app_for_progress, &mut st);
+        };
+        let r = check_repositories(
+            &settings,
+            &seen,
+            &undo,
+            &mut cleanup,
+            &eng.locks,
+            &on_progress,
+        );
         (r, cleanup)
     })
     .await;
 
     let mut st = engine.state.lock().await;
     st.checking = false;
+    st.progress = None;
     let Ok(((repos, offline), cleanup)) = result else {
         publish(app, &mut st);
         return;
