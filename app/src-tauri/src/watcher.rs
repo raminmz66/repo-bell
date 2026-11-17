@@ -15,6 +15,7 @@ use tokio::sync::Notify;
 use crate::news::{self, TrayIcon as IconKind, TrayModel};
 use crate::notify;
 use crate::store::{self, Notified, Seen, Settings};
+use crate::updates::{UpdateState, UpdateView};
 
 /// How many folders deep repos are searched for.
 const DISCOVER_DEPTH: usize = 4;
@@ -112,6 +113,7 @@ pub struct AppStateView {
     pub error_repos: usize,
     /// Watched folders that no longer exist.
     pub folder_errors: Vec<FolderError>,
+    pub update: UpdateView,
 }
 
 /// What the server said about a repo's branches, and when.
@@ -168,6 +170,9 @@ pub struct EngineState {
     pub check_item: Option<MenuItem<tauri::Wry>>,
     /// The text and enabled flag last put on `check_item`.
     pub check_label: Option<(String, bool)>,
+    pub update: UpdateState,
+    /// Repo actions running now (update, undo, branch cleanup). Install waits for zero.
+    pub actions_running: u32,
 }
 
 /// One lock per repo, so a check never runs Git on a repo while an update or undo does.
@@ -243,6 +248,8 @@ impl EngineState {
             tray: None,
             check_item: None,
             check_label: None,
+            update: UpdateState::default(),
+            actions_running: 0,
         }
     }
 
@@ -275,6 +282,7 @@ impl EngineState {
             news_changes: s.news_changes,
             error_repos: s.error_repos,
             folder_errors,
+            update: self.update.view(self.actions_running),
         }
     }
 }

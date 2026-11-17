@@ -4,6 +4,7 @@ pub mod editors;
 pub mod news;
 pub mod notify;
 pub mod store;
+pub mod updates;
 pub mod watcher;
 
 use tauri::image::Image;
@@ -63,6 +64,7 @@ pub fn run() {
     let engine: SharedEngine = watcher::Shared::new();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(engine.clone())
         .invoke_handler(tauri::generate_handler![
             actions::get_app_state,
@@ -149,6 +151,11 @@ pub fn run() {
                         }
                     })
                     .build(app)?;
+
+                engine.state.blocking_lock().update = updates::UpdateState::for_bundle(
+                    app.package_info().version.to_string(),
+                    tauri::utils::platform::bundle_type(),
+                );
 
                 // The first check (and every later one) runs in the background.
                 tauri::async_runtime::spawn(watcher::scheduler(handle, engine.clone()));

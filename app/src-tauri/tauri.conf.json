@@ -27,6 +27,13 @@
       "devCsp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNDRDgzODJEMzIyODVFODcKUldTSFhpZ3lMVGpZUElDWlJzc0NCK0xGVXJqUWlIUVpZLzFmMDF6ZHVad0hmeTVYclpVMnpJVEsK",
+      "endpoints": ["https://github.com/raminmz66/repo-bell/releases/latest/download/latest.json"],
+      "requireSignedVersion": true
+    }
+  },
   "bundle": {
     "active": true,
     "category": "DeveloperTool",
