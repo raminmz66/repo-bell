@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: About and in-app updates are built, reviewed and tested end to end (2026-11-17). Next: release v0.1.0, make the repo public, then a v0.1.1 test update before telling teammates.
+Current step: v0.1.0 is released and the repo is public (2026-11-17). Next: release v0.1.1 and update to it from inside the app, then tell teammates.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups).
 
@@ -89,10 +89,11 @@ Each screen gets a senior UI/UX review before it is marked done.
   - [x] Plan
   - [x] Build
   - [x] End-to-end updater test (2026-11-17: AppImage and .deb, offline, tampered download, guard during download)
-  - [ ] Release v0.1.0
-  - [ ] Make the repo public
+  - [x] Release v0.1.0 (2026-11-17, signed, notes from the tag)
+  - [x] Make the repo public (2026-11-17)
   - [ ] Release v0.1.1 and update from the app
   - [ ] Tell teammates
+- [ ] Known small issue: if two RepoBells run at once, the newer one deletes the older one's tray icon files, so the older one shows "…" in the top bar. Seen once on 2026-11-17 after many test copies; a restart fixed it.
 - [ ] Known small issue: Undo after a background check can send a second notification for changes you already saw. Left as is (rare, harmless).
 
 ## Later

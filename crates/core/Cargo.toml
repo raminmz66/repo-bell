@@ -1,6 +1,6 @@
 [package]
 name = "repobell-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "Git logic for RepoBell: find repos, read status, build the news feed, update safely."
