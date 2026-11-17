@@ -255,6 +255,7 @@ mod tests {
     fn error_mapping_matches_the_table() {
         let sig = || Error::SignatureUtf8("x".into());
         assert_eq!(error_for(&sig(), false), UpdateError::BadDownload);
+        assert_eq!(error_for(&sig(), true), UpdateError::BadDownload);
         assert_eq!(error_for(&io(), false), UpdateError::DownloadFailed);
         assert_eq!(
             error_for(&Error::InvalidUpdaterFormat, true),
@@ -313,6 +314,8 @@ mod tests {
     fn install_guard() {
         let mut s = UpdateState {
             status: UpdateStatus::Ready,
+            downloaded: 5,
+            total: Some(9),
             ..can()
         };
         assert_eq!(
@@ -323,6 +326,8 @@ mod tests {
         assert_eq!(s.start_install(0), Ok(()));
         assert_eq!(s.status, UpdateStatus::Downloading);
         assert_eq!(s.error, None);
+        assert_eq!(s.downloaded, 0);
+        assert_eq!(s.total, None);
         assert!(s.start_install(0).is_err());
         let msg = "RepoBell is installing an update and will restart in a moment.";
         assert_eq!(s.action_allowed(), Err(msg.to_string()));
