@@ -789,10 +789,12 @@ pub fn publish(app: &AppHandle, st: &mut EngineState) {
             if let Ok(item) = apply_tray(app, &tray, &model, &label) {
                 st.tray = Some(model);
                 st.check_item = Some(item);
-                st.check_label = Some(label);
+                st.check_label = Some(label.clone());
             }
         }
-    } else if st.check_label.as_ref() != Some(&label) {
+    }
+    // Also runs when the rebuild above failed, so the item never keeps an old label.
+    if st.check_label.as_ref() != Some(&label) {
         if let Some(item) = &st.check_item {
             let _ = item.set_text(&label.0);
             let _ = item.set_enabled(label.1);
