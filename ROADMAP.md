@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Getting ready for teammates (2026-11-17). The repo is going public, with commit emails rewritten to Ramin's GitHub private email. Still to decide: how updates reach users, the About screen, and the release order. Ramin still has to try a real branch delete and Undo.
+Current step: Getting ready for teammates (2026-11-17). The repo is going public, with commit emails rewritten to Ramin's GitHub private email. Now building About and in-app updates (spec and plan in docs/superpowers). Next: release v0.1.0, then make the repo public.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups).
 
@@ -66,7 +66,7 @@ Each screen gets a senior UI/UX review before it is marked done.
 - [x] Design approved (2026-11-10)
 - [x] Build plan
 - [x] Build, test and review
-- [x] Install and hand test (list shows on real repos; delete not tried on real data)
+- [x] Install and hand test (delete and Undo tried by Ramin on a test repo, 2026-11-17)
 - [ ] Follow-ups: remove the duplicate UI test; treat an unreadable worktree state file as checked out
 
 ## Fixes
