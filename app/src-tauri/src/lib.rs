@@ -85,7 +85,9 @@ pub fn run() {
             actions::discover_suggested_folders,
             actions::scan_folder,
             actions::check_tray,
-            actions::hide_window
+            actions::hide_window,
+            updates::check_for_updates,
+            updates::open_link
         ])
         .setup({
             let engine = engine.clone();
@@ -158,7 +160,8 @@ pub fn run() {
                 );
 
                 // The first check (and every later one) runs in the background.
-                tauri::async_runtime::spawn(watcher::scheduler(handle, engine.clone()));
+                tauri::async_runtime::spawn(watcher::scheduler(handle.clone(), engine.clone()));
+                tauri::async_runtime::spawn(updates::scheduler(handle, engine.clone()));
                 Ok(())
             }
         })

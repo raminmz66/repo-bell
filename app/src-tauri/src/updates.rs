@@ -4,7 +4,10 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::utils::config::BundleType;
-use tauri_plugin_updater::Error;
+use tauri::{AppHandle, State};
+use tauri_plugin_updater::{Error, UpdaterExt};
+
+use crate::watcher::{now_seconds, publish, SharedEngine};
 
 /// 1 MB is 1,000,000 bytes, here and in the window.
 pub const MB: u64 = 1_000_000;
@@ -199,6 +202,71 @@ pub fn mb_changed(before: u64, after: u64) -> bool {
     before == 0 || before / MB != after / MB
 }
 
+/// Looks for an update. The state lock is never held while the network call runs.
+pub async fn check(app: &AppHandle, engine: &SharedEngine, manual: bool) {
+    let before = {
+        let mut st = engine.state.lock().await;
+        let Some(before) = st.update.begin_check() else {
+            return;
+        };
+        publish(app, &mut st);
+        before
+    };
+    let found = match app.updater() {
+        Ok(u) => u.check().await,
+        Err(e) => Err(e),
+    };
+    if let Err(e) = &found {
+        eprintln!("repobell: update check failed: {e}");
+    }
+    let mut st = engine.state.lock().await;
+    st.update.finish_check(found, before, manual, now_seconds());
+    publish(app, &mut st);
+}
+
+/// Checks at start and then every 24 hours, once setup is done. Steps of at most 60 seconds, so
+/// a check runs soon after the computer wakes.
+pub async fn scheduler(app: AppHandle, engine: SharedEngine) {
+    if !engine.state.lock().await.update.can_update {
+        return;
+    }
+    loop {
+        let wait = {
+            let st = engine.state.lock().await;
+            wait_for(st.settings.setup_done, &st.update, now_seconds())
+        };
+        if wait.is_zero() {
+            check(&app, &engine, false).await;
+        } else {
+            tokio::time::sleep(wait.min(Duration::from_secs(60))).await;
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn check_for_updates(
+    app: AppHandle,
+    engine: State<'_, SharedEngine>,
+) -> Result<(), String> {
+    let engine = engine.inner().clone();
+    tauri::async_runtime::spawn(async move { check(&app, &engine, true).await });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_link(target: String) -> Result<(), String> {
+    let url = match target.as_str() {
+        "source" => "https://github.com/raminmz66/repo-bell",
+        "issues" => "https://github.com/raminmz66/repo-bell/issues/new",
+        _ => return Err("That link isn't known.".into()),
+    };
+    std::process::Command::new("xdg-open")
+        .arg(url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|_| "Couldn't open the browser.".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -336,6 +404,11 @@ mod tests {
         s.status = UpdateStatus::Ready;
         s.error = Some(UpdateError::NotInstalled);
         assert_eq!(s.action_allowed(), Ok(()));
+    }
+
+    #[test]
+    fn open_link_refuses_unknown_targets() {
+        assert!(open_link("https://evil.example".into()).is_err());
     }
 
     #[test]
