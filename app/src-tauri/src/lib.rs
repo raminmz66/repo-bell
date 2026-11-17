@@ -87,7 +87,8 @@ pub fn run() {
             actions::check_tray,
             actions::hide_window,
             updates::check_for_updates,
-            updates::open_link
+            updates::open_link,
+            updates::install_update
         ])
         .setup({
             let engine = engine.clone();

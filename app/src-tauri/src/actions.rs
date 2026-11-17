@@ -226,6 +226,40 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> 
         .map_err(|_| "Something went wrong inside RepoBell.".to_string())
 }
 
+/// Counts a running repo action, so Install waits for it. Bind it (`let _action = ...`) as the
+/// first line of the command: `let _ =` would drop it at once.
+pub struct ActionGuard {
+    app: tauri::AppHandle,
+    engine: SharedEngine,
+}
+
+/// Fails while an update downloads or installs; else counts one more running action.
+pub async fn begin_action(
+    app: &tauri::AppHandle,
+    engine: &SharedEngine,
+) -> Result<ActionGuard, String> {
+    let mut st = engine.state.lock().await;
+    st.update.action_allowed()?;
+    st.actions_running += 1;
+    watcher::publish(app, &mut st);
+    drop(st);
+    Ok(ActionGuard {
+        app: app.clone(),
+        engine: engine.clone(),
+    })
+}
+
+impl Drop for ActionGuard {
+    fn drop(&mut self) {
+        let (app, engine) = (self.app.clone(), self.engine.clone());
+        tauri::async_runtime::spawn(async move {
+            let mut st = engine.state.lock().await;
+            st.actions_running = st.actions_running.saturating_sub(1);
+            watcher::publish(&app, &mut st);
+        });
+    }
+}
+
 #[tauri::command]
 pub async fn get_app_state(engine: State<'_, SharedEngine>) -> Result<AppStateView, String> {
     Ok(engine.state.lock().await.to_view())
@@ -329,6 +363,7 @@ pub async fn update_repo(
     expected: PlanView,
     engine: State<'_, SharedEngine>,
 ) -> Result<UpdateResult, String> {
+    let _action = begin_action(&app, engine.inner()).await?;
     ensure_watched(&engine, &path).await?;
     let expected_plan = expected
         .to_plan()
@@ -410,6 +445,7 @@ pub async fn undo_repo(
     path: PathBuf,
     engine: State<'_, SharedEngine>,
 ) -> Result<SimpleResult, String> {
+    let _action = begin_action(&app, engine.inner()).await?;
     ensure_watched(&engine, &path).await?;
     let _guard = engine.locks.get(&path).lock_owned().await;
     let Some(point) = engine.state.lock().await.undo.get(&path).cloned() else {
@@ -540,6 +576,7 @@ pub async fn delete_old_branches(
     branches: Vec<BranchPick>,
     engine: State<'_, SharedEngine>,
 ) -> Result<SimpleResult, String> {
+    let _action = begin_action(&app, engine.inner()).await?;
     ensure_watched(&engine, &path).await?;
     let engine = engine.inner();
     let _guard = engine.locks.get(&path).lock_owned().await;
@@ -585,6 +622,7 @@ pub async fn undo_cleanup(
     path: PathBuf,
     engine: State<'_, SharedEngine>,
 ) -> Result<SimpleResult, String> {
+    let _action = begin_action(&app, engine.inner()).await?;
     ensure_watched(&engine, &path).await?;
     let engine = engine.inner();
     let _guard = engine.locks.get(&path).lock_owned().await;
@@ -619,6 +657,7 @@ pub async fn update_main(
     path: PathBuf,
     engine: State<'_, SharedEngine>,
 ) -> Result<SimpleResult, String> {
+    let _action = begin_action(&app, engine.inner()).await?;
     ensure_watched(&engine, &path).await?;
     let _guard = engine.locks.get(&path).lock_owned().await;
     let p = path.clone();

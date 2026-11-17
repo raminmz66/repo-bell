@@ -5,7 +5,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tauri::utils::config::BundleType;
 use tauri::{AppHandle, State};
-use tauri_plugin_updater::{Error, UpdaterExt};
+use tauri_plugin_updater::{Error, Update, UpdaterExt};
 
 use crate::watcher::{now_seconds, publish, SharedEngine};
 
@@ -251,6 +251,74 @@ pub async fn check_for_updates(
     let engine = engine.inner().clone();
     tauri::async_runtime::spawn(async move { check(&app, &engine, true).await });
     Ok(())
+}
+
+#[tauri::command]
+pub async fn install_update(app: AppHandle, engine: State<'_, SharedEngine>) -> Result<(), String> {
+    let engine = engine.inner().clone();
+    let update = {
+        let mut st = engine.state.lock().await;
+        let running = st.actions_running;
+        st.update.start_install(running)?;
+        let Some(update) = st.update.pending.clone() else {
+            st.update.status = UpdateStatus::Idle;
+            publish(&app, &mut st);
+            return Err("There's no update to install.".into());
+        };
+        publish(&app, &mut st);
+        update
+    };
+    tauri::async_runtime::spawn(install(app, engine, update));
+    Ok(())
+}
+
+/// Puts a failed download or install back to Ready with the reason. The state lock is never held
+/// across the download or the install.
+async fn fail_install(app: &AppHandle, engine: &SharedEngine, e: &Error, installing: bool) {
+    eprintln!("repobell: update install failed: {e}");
+    let mut st = engine.state.lock().await;
+    st.update.status = UpdateStatus::Ready;
+    st.update.error = Some(error_for(e, installing));
+    publish(app, &mut st);
+}
+
+async fn install(app: AppHandle, engine: SharedEngine, update: Update) {
+    let mut got = 0u64;
+    let progress = |len: usize, total: Option<u64>| {
+        let before = got;
+        got += len as u64;
+        if mb_changed(before, got) {
+            let (app, engine, after) = (app.clone(), engine.clone(), got);
+            // Not blocking_lock: this callback runs inside the async runtime.
+            tauri::async_runtime::spawn(async move {
+                let mut st = engine.state.lock().await;
+                st.update.downloaded = st.update.downloaded.max(after);
+                st.update.total = total;
+                publish(&app, &mut st);
+            });
+        }
+    };
+    let bytes = match update.download(progress, || {}).await {
+        Ok(b) => b,
+        Err(e) => return fail_install(&app, &engine, &e, false).await,
+    };
+    {
+        let mut st = engine.state.lock().await;
+        st.update.status = UpdateStatus::Installing;
+        publish(&app, &mut st);
+    }
+    match tauri::async_runtime::spawn_blocking(move || update.install(bytes)).await {
+        Ok(Ok(())) => app.restart(),
+        Ok(Err(e)) => fail_install(&app, &engine, &e, true).await,
+        // The install task panicked or was cancelled.
+        Err(e) => {
+            eprintln!("repobell: update install task failed: {e}");
+            let mut st = engine.state.lock().await;
+            st.update.status = UpdateStatus::Ready;
+            st.update.error = Some(UpdateError::NotInstalled);
+            publish(&app, &mut st);
+        }
+    }
 }
 
 #[tauri::command]
