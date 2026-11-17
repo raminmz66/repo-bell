@@ -1,8 +1,8 @@
 # RepoBell roadmap
 
-Current step: Check progress (status strip, tray label, 4 repos at once) is merged, installed and hand-tested by Ramin (2026-11-17). Next: Ramin tries a real branch delete and Undo. Tagging v0.1.0 is still open.
+Current step: Getting ready for teammates (2026-11-17). The repo is going public, with commit emails rewritten to Ramin's GitHub private email. Still to decide: how updates reach users, the About screen, and the release order. Ramin still has to try a real branch delete and Undo.
 
-Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
+Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups).
 
 ## Phase 0: research and decisions
 

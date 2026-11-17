@@ -12,12 +12,12 @@
 
 ## Global Constraints
 
-- Work only in `/home/ramin/projects/repo-bell/.claude/worktrees/improve-ux`. Never touch the user's running RepoBell, its data in `~/.config/repobell` or `~/.local/state/repobell`, or `/var/www/html`.
+- Work only in `.claude/worktrees/improve-ux`. Never touch the user's running RepoBell, its data in `~/.config/repobell` or `~/.local/state/repobell`, or `/var/www/html`.
 - No new dependencies. No new backend data. The only backend change is the `window-shown` event (Task 1).
 - Keep the files' existing Svelte style (`export let`, `$:`, `onclick=`, snippets). Light theme only.
 - Styling uses DESIGN.md tokens only: label 12px 700 uppercase Soft Ink (#3d3d45) with the count in Muted Ink (#5b5b66); row name 14px 700; line 2 13px Muted Ink; flags 12px chips with 6px radius; row padding about 9px 12px; group list white, 10px radius, 1px Hairline (#e3e3e0) border and dividers. Row buttons are 32px tall (decided, below DESIGN.md's 36px).
 - Row states: openable row hover #fbfbf9 and pointer cursor; open row keeps #fbfbf9; flash = inset 2px Signal Blue (#1f5fd1) ring with #f4f8fe fill; conflict or stash alert = inset 1.5px #c4372b ring. Chevron and flash transitions off under `prefers-reduced-motion`.
-- Every UI task: load the `impeccable` skill and read `/home/ramin/projects/repo-bell/.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit. Where craft-floor disagrees with the spec, the spec wins (the uppercase group label is the section's `<h2>`, not a kicker).
+- Every UI task: load the `impeccable` skill and read `.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit. Where craft-floor disagrees with the spec, the spec wins (the uppercase group label is the section's `<h2>`, not a kicker).
 - Every new user-facing string goes through the `humanizer` skill before commit. Copy fixed by the spec stays as written.
 - No `alert()`, `confirm()` or `prompt()` (`no-alert.test.ts` scans for it). No `role="button"` anywhere.
 - Builders write only the tests a task lists (ponytail mode). Test first where the task says so.

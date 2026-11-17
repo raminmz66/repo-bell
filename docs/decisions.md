@@ -16,7 +16,9 @@ The window is written in Svelte with Vite. Svelte compiles down to small plain J
 
 ## License and hosting
 
-RepoBell uses the MIT license. The code lives in the private GitHub repo `raminmz66/repo-bell` until the first release.
+RepoBell uses the MIT license. The code lives in the public GitHub repo `raminmz66/repo-bell`.
+
+Decided on 2026-11-17 to make the repo public, so teammates can install RepoBell with one command and without a GitHub account. Before that, every commit was rewritten to use Ramin's GitHub private email instead of his work email, and private links and home folder paths were removed from the files.
 
 ## Name
 
@@ -77,7 +79,7 @@ The network fetch runs without the repo's lock, because it can take minutes. A c
 
 ## Releases
 
-GitHub Actions runs the tests and checks on every push and pull request. Pushing a version tag such as `v0.1.0` builds the .deb and AppImage and attaches them to a GitHub release. The repo stays private, so only invited people can download them. Making it public is a separate decision.
+GitHub Actions runs the tests and checks on every push and pull request. Pushing a version tag such as `v0.1.0` builds the .deb and AppImage and attaches them to a GitHub release. Anyone can download them.
 
 ## First run
 
@@ -165,6 +167,6 @@ RepoBell checks up to 4 repos at the same time, in discovery order, with results
 
 ## Design reviews
 
-Mockups are HTML files in `docs/mockups/`. Each one is also published as a private claude.ai artifact so it can be opened on a phone.
+Mockups are HTML files in `docs/mockups/`. Screenshots of them can be sent to a phone.
 
 Every mockup gets a senior UI/UX review: what works, what to fix, the missing states (first run, all quiet, offline, error) and the platform limits that affect the design.

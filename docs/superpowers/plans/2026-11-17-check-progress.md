@@ -8,17 +8,17 @@
 
 **Tech Stack:** Rust (Tauri 2, tokio `Mutex`, std threads), Svelte 5 (legacy `export let` / `$:` syntax, as the files use today), Vitest + Testing Library + `@tauri-apps/api/mocks`.
 
-**Spec:** `docs/superpowers/specs/2026-11-17-check-progress-design.md` (read it in full; it has the copy, the strip look, the edge cases and the tests this plan refers to). Visual target: option C in `/home/ramin/projects/repo-bell/artifacts/check-progress.html`; tray: option B in `artifacts/check-progress-tray.html` (this worktree). Where they differ from the spec, the spec wins.
+**Spec:** `docs/superpowers/specs/2026-11-17-check-progress-design.md` (read it in full; it has the copy, the strip look, the edge cases and the tests this plan refers to). Visual target: option C in `artifacts/check-progress.html`; tray: option B in `artifacts/check-progress-tray.html` (this worktree). Where they differ from the spec, the spec wins.
 
 ## Global Constraints
 
-- Work only in `/home/ramin/projects/repo-bell/.claude/worktrees/check-progress`. Never touch the user's running RepoBell, its data in `~/.config/repobell` or `~/.local/state/repobell`, or `/var/www/html`.
+- Work only in `.claude/worktrees/check-progress`. Never touch the user's running RepoBell, its data in `~/.config/repobell` or `~/.local/state/repobell`, or `/var/www/html`.
 - No new dependencies (no `rayon`). No new settings. No new timeouts (60 s fetch and 60 s server branch call stay).
 - `const CHECK_WORKERS: usize = 4`, fixed.
 - Keep the files' existing Svelte style (`export let`, `$:`, `onclick=`). Light theme only.
 - Strip: Surface (#ffffff), 1px Hairline (#e3e3e0) bottom border, about 8px 16px 9px padding, about 40px high. Line 1 13px: "Checking" Soft Ink (#3d3d45), repo name Ink (#1b1b1f) 500, count Soft Ink with `font-variant-numeric: tabular-nums`. Name cut with an ellipsis, count never cut. Bar 6px below, 4px high, Chip Grey (#eeeeec) track, Muted Ink (#5b5b66) fill, 2px radius, width `done / total`, width eases 0.15s, no transition under `prefers-reduced-motion: reduce`. Never blue (One Blue Rule).
 - Copy fixed by the spec: "Checking {name}", "{done} of {total}", tray "Checking {done} of {total}…" (one `…` character), "Check now", `aria-label="Check progress"`. Hidden status text "Checking your repos" / "Check finished" (wording may change only through `humanizer`).
-- Every UI task: load the `impeccable` skill and read `/home/ramin/projects/repo-bell/.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit. Follow DESIGN.md tokens. Where craft-floor disagrees with the spec, the spec wins.
+- Every UI task: load the `impeccable` skill and read `.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit. Follow DESIGN.md tokens. Where craft-floor disagrees with the spec, the spec wins.
 - Every new user-facing string goes through the `humanizer` skill before commit.
 - Builders write only the tests a task lists (ponytail mode). Test first.
 - Rust: `export PATH="$HOME/.cargo/bin:$PATH"`, then from the worktree root `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --all --check` (as CI does).
@@ -141,7 +141,7 @@ git commit -m "feat(check): send check progress to the window and tray"
 
 Label reason: touches 5 files.
 
-Load `impeccable` and read `/home/ramin/projects/repo-bell/.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit. Follow DESIGN.md tokens.
+Load `impeccable` and read `.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit. Follow DESIGN.md tokens.
 
 **Files:**
 - Create: `app/src/lib/CheckStrip.svelte`
@@ -183,7 +183,7 @@ git commit -m "feat(ui): show check progress in a strip under the header"
 
 Label reason: adds state that tracks progress changes.
 
-Load `impeccable` and read `/home/ramin/projects/repo-bell/.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit.
+Load `impeccable` and read `.claude/skills/impeccable/reference/craft-floor.md` before the first UI edit.
 
 **Files:**
 - Modify: `app/src/App.svelte`
