@@ -268,7 +268,7 @@ The tag check stays as it is. Changes:
    ```bash
    git fetch --force origin "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
    if [ "$(git cat-file -t "$GITHUB_REF_NAME")" = tag ]; then
-     git tag -l --format='%(contents:subject)%0a%(contents:body)' "$GITHUB_REF_NAME" > notes.txt
+     git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > notes.txt
    else
      : > notes.txt
    fi
