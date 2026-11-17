@@ -28,7 +28,7 @@ RepoBell keeps two small JSON files in the standard Linux folders. Settings (fol
 
 ## Checking for news
 
-RepoBell checks every 5 minutes by default. Settings offers 1, 5, 15, 30 and 60 minutes, and "Check now" is always available. Each check fetches only the main branch, and repos are checked one after another. After an error the wait doubles (5, 10, 20 minutes and so on) until a check works again. This keeps news fresh without heavy network use or battery drain.
+RepoBell checks every 5 minutes by default. Settings offers 1, 5, 15, 30 and 60 minutes, and "Check now" is always available. Each check fetches only the main branch, and up to 4 repos are checked at the same time. After an error the wait doubles (5, 10, 20 minutes and so on) until a check works again. This keeps news fresh without heavy network use or battery drain.
 
 ## v1 features
 
@@ -152,6 +152,16 @@ While one of its actions runs, a row stays in the group it was in. A row with an
 After review: a branch name that is too long is cut with "..." and shows in full on hover. The main status and the flags are never cut. Rows on a branch that need Update main come first, then rows with unsaved changes. When nothing is new and nothing is wrong but rows are listed, the headline stays compact: "All quiet" with "Nothing new in your N repos". Each feed title is one line, and the full title shows on hover.
 
 Measured before the change: 1 of 9 repos that needed a look fit above the fold at 420×640 with 16 repos. Layout B (leaner cards) scrolls again at 5 news repos, and C (list then repo page) needs 2 clicks plus Back per action.
+
+## Check progress
+
+Decided 2026-11-17. Full design: `docs/superpowers/specs/2026-11-17-check-progress-design.md`.
+
+While a check runs, a thin strip under the window header shows "Checking repo-name" and "6 of 15", with a grey bar that fills one step per finished repo. It shows on every main-window screen and goes away when the check ends. The name is the repo that has been running longest, so a slow one stands out. The bar is grey because progress is not news. Screen readers hear only the start and the end.
+
+In the tray, "Check now" becomes "Checking 6 of 15…" and is greyed out until the check ends, for timer checks too. Only that item's text changes, so the menu isn't rebuilt per repo. There is no "done" notification, because RepoBell already notifies when there is real news.
+
+RepoBell checks up to 4 repos at the same time, in discovery order, with results kept in that order. Measured on 2026-11-17 with 15 repos: 58 s one after another, 15 s with 4 at once. 4 stays well under SSH's default limit of 10 new connections. There is no setting for it.
 
 ## Design reviews
 

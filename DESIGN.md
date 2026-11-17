@@ -107,6 +107,11 @@ components:
   repo-row:
     backgroundColor: "{colors.surface}"
     padding: "9px 12px"
+  check-strip:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink-soft}"
+    typography: "{typography.label}"
+    padding: "8px 16px 9px"
   badge-new:
     backgroundColor: "{colors.accent}"
     textColor: "{colors.surface}"
@@ -226,6 +231,12 @@ A single column inside a fixed 420 by 640 window. The main body scrolls and has 
 - **Feed titles:** one line each, cut with an ellipsis, full title on hover. The bullet stays.
 - **Row states:** hover (lines 1 and 2 only) and open use #fbfbf9. A notification jump flashes an inset 2px Signal Blue ring on #f4f8fe. An open alert shows an inset 1.5px red (#c4372b) ring.
 
+### Status strip
+Sits between the header band and the scrolling body while a check runs.
+- **Strip:** Paper White, 1px Hairline bottom border, 8px 16px 9px padding.
+- **Line:** 13px. "Checking" in Soft Ink, the repo name in Ink (500) and cut with an ellipsis, the count in Soft Ink with tabular numbers.
+- **Bar:** 4px high, Chip Grey track, Muted Ink fill, 2px radius. Never blue, because progress is not news.
+
 ## Elevation & Depth
 
 The system is flat. Depth comes from 1px borders and the step between warm canvas and white. A single soft shadow lifts the whole window off the desktop. Other shadows are small functional exceptions.
@@ -278,7 +289,7 @@ Red wash, Red Edge border, Red Ink 14px text, 8px radius, with an underlined tex
 A header band (#ebebe8) with a 1px bottom border, a centered 15px bold title and 8px-radius icon buttons that darken on hover (#e0e0dc). The footer is white, 52px high, with a Hairline top border and the same style of ghost buttons. There are no tabs.
 
 ### Motion
-Short and functional. State changes ease over 0.15s, the row highlight over 0.3s, and spinners turn at 1s linear. Reduced-motion media queries exist in the app, the rows, Settings and Welcome.
+Short and functional. State changes ease over 0.15s, the row highlight over 0.3s, and spinners turn at 1s linear. The status strip bar eases its width over 0.15s, and not at all under reduced motion. Reduced-motion media queries exist in the app, the rows, Settings and Welcome.
 
 ## Do's and Don'ts
 

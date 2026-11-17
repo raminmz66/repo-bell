@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: The grouped rows main window is merged and installed (2026-11-14). It was hand-checked in a dev instance with 17 test repos. Fix for news staying after Update is merged and installed (2026-11-14). Branch cleanup is merged, installed and hand-tested on real repos (2026-11-10). Next: Ramin tries a real delete and Undo. Tagging v0.1.0 is still open.
+Current step: The check progress build (status strip, tray label, 4 repos at once) is done and waits for the hand check and merge. Branch cleanup is merged and installed; Ramin still tries a real delete and Undo. Tagging v0.1.0 is still open.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups) and on the [RepoBell mockups canvas](https://claude.ai/artifact/LuGyXkKCaV5K5jS4yKEvjr) (private).
 
@@ -78,6 +78,11 @@ Each screen gets a senior UI/UX review before it is marked done.
   - [x] Build
   - [x] Hand check in the running app, merge and reinstall
   - [x] Tray jump now scrolls to the row (WebKitGTK ignored smooth scrolling)
+- [ ] Check progress and 4 repos at once (2026-11-17)
+  - [x] Design (`docs/superpowers/specs/2026-11-17-check-progress-design.md`)
+  - [x] Plan
+  - [x] Build
+  - [ ] Hand check in the running app, merge and reinstall
 - [ ] Known small issue: Undo after a background check can send a second notification for changes you already saw. Left as is (rare, harmless).
 
 ## Later
