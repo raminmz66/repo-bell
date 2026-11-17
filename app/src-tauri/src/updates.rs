@@ -260,11 +260,18 @@ pub fn open_link(target: String) -> Result<(), String> {
         "issues" => "https://github.com/raminmz66/repo-bell/issues/new",
         _ => return Err("That link isn't known.".into()),
     };
-    std::process::Command::new("xdg-open")
+    let mut child = std::process::Command::new("xdg-open")
         .arg(url)
         .spawn()
-        .map(|_| ())
-        .map_err(|_| "Couldn't open the browser.".to_string())
+        .map_err(|e| {
+            eprintln!("repobell: open_link failed: {e}");
+            "Couldn't open the browser.".to_string()
+        })?;
+    // A thread reaps the child so no zombie is left behind.
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }
 
 #[cfg(test)]
