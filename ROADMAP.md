@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: v0.1.0 is released and the repo is public (2026-11-17). Next: release v0.1.1 and update to it from inside the app, then tell teammates.
+Current step: v0.1.0 is released, v0.1.1 is tagged, and the repo is public (2026-11-17). Next: Ramin updates his installed 0.1.0 to 0.1.1 from inside the app, backs up the signing key, then tells teammates the install command. Every later release: Claude drafts the tag notes, Ramin approves, then tag (see CONTRIBUTING).
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups).
 
@@ -91,8 +91,11 @@ Each screen gets a senior UI/UX review before it is marked done.
   - [x] End-to-end updater test (2026-11-17: AppImage and .deb, offline, tampered download, guard during download)
   - [x] Release v0.1.0 (2026-11-17, signed, notes from the tag)
   - [x] Make the repo public (2026-11-17)
-  - [ ] Release v0.1.1 and update from the app
-  - [ ] Tell teammates
+  - [x] Tag v0.1.1 (2026-11-17, a test release with only the version bump; check its release finished on GitHub)
+  - [ ] Ramin updates his installed 0.1.0 to 0.1.1 from inside the app (Settings, About, Check for updates, Install)
+  - [ ] Back up the signing key to the password manager, then delete `~/.tauri/repobell.key`
+  - [ ] Delete the history backup bundle from before the email rewrite (in the home folder)
+  - [ ] Tell teammates the install command from the README
 - [ ] Known small issue: if two RepoBells run at once, the newer one deletes the older one's tray icon files, so the older one shows "…" in the top bar. Seen once on 2026-11-17 after many test copies; a restart fixed it.
 - [ ] Known small issue: Undo after a background check can send a second notification for changes you already saw. Left as is (rare, harmless).
 
