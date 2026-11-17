@@ -111,6 +111,16 @@ components:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink-soft}"
     padding: "8px 16px 9px"
+  about-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.lg}"
+    padding: "12px"
+  footer-update:
+    backgroundColor: "transparent"
+    textColor: "{colors.accent}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
   badge-new:
     backgroundColor: "{colors.accent}"
     textColor: "{colors.surface}"
@@ -271,6 +281,12 @@ Softly rounded rectangles. The window is 12px. Group lists and menus are 10px. B
 - **Background:** Paper White on Warm Canvas.
 - **Border:** 1px Hairline.
 - **Inset box:** Warm Canvas fill, Hairline border, 8px radius, 12px padding. Holds the update prompt and previews.
+
+### Footer update button
+Shows when a new version is ready: "RepoBell 0.2.0 is ready". 14px, 500, Signal Blue text, no fill, with an 8px Muted Ink dot before it. The text is blue because it is an action, and the dot is grey because blue dots mean team news. It opens About.
+
+### About card
+The last card in Settings. Paper White, 1px Hairline border, 10px radius, 12px padding. It holds the version, one status line and one button. The notes box inside is Warm Canvas with an 8px radius. Links are Signal Blue and underlined. The download bar is the status strip bar: 4px high, Chip Grey track, Muted Ink fill.
 
 ### Badges and Chips
 - **Badge:** 12px, 500, 6px radius, 3px 9px. Solid blue for "new", red wash for errors.

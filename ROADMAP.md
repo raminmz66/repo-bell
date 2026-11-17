@@ -1,6 +1,6 @@
 # RepoBell roadmap
 
-Current step: Getting ready for teammates (2026-11-17). The repo is going public, with commit emails rewritten to Ramin's GitHub private email. Now building About and in-app updates (spec and plan in docs/superpowers). Next: release v0.1.0, then make the repo public.
+Current step: About and in-app updates are built and reviewed; next is the local end-to-end updater test, then release v0.1.0 and make the repo public.
 
 Decisions and their reasons are in [docs/decisions.md](docs/decisions.md). Mockups live in [docs/mockups](docs/mockups).
 
@@ -84,6 +84,15 @@ Each screen gets a senior UI/UX review before it is marked done.
   - [x] Build
   - [x] Merge and reinstall
   - [x] Hand test by Ramin
+- [ ] About and in-app updates (2026-11-17)
+  - [x] Design (`docs/superpowers/specs/2026-11-17-about-and-updates-design.md`)
+  - [x] Plan
+  - [x] Build
+  - [ ] End-to-end updater test
+  - [ ] Release v0.1.0
+  - [ ] Make the repo public
+  - [ ] Release v0.1.1 and update from the app
+  - [ ] Tell teammates
 - [ ] Known small issue: Undo after a background check can send a second notification for changes you already saw. Left as is (rare, harmless).
 
 ## Later

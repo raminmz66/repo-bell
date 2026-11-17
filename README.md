@@ -21,17 +21,16 @@ RepoBell sits quietly in your Ubuntu top bar, watches your Git repos, and tells 
 
 ## Install
 
-Download the `.deb` or the AppImage from the repo's Releases page.
-
 ```bash
-sudo apt install ./RepoBell_0.1.0_amd64.deb
+wget -qO /tmp/RepoBell.deb https://github.com/raminmz66/repo-bell/releases/latest/download/RepoBell_amd64.deb && sudo apt install -y /tmp/RepoBell.deb
 ```
 
-Or run the AppImage without installing:
+Then open RepoBell from the app menu. RepoBell checks for a new version once a day; Settings, About installs it.
+
+Or use the AppImage, if you don't want a package:
 
 ```bash
-chmod +x RepoBell_0.1.0_amd64.AppImage
-./RepoBell_0.1.0_amd64.AppImage
+mkdir -p ~/Applications && wget -qO ~/Applications/RepoBell.AppImage https://github.com/raminmz66/repo-bell/releases/latest/download/RepoBell_amd64.AppImage && chmod +x ~/Applications/RepoBell.AppImage && ~/Applications/RepoBell.AppImage
 ```
 
 To remove the package: `sudo apt remove repo-bell`.

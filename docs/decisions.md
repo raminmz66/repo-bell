@@ -79,7 +79,7 @@ The network fetch runs without the repo's lock, because it can take minutes. A c
 
 ## Releases
 
-GitHub Actions runs the tests and checks on every push and pull request. Pushing a version tag such as `v0.1.0` builds the .deb and AppImage and attaches them to a GitHub release. Anyone can download them.
+GitHub Actions runs the tests and checks on every push and pull request. Pushing a version tag such as `v0.1.0` builds and signs the .deb and AppImage and attaches them to a GitHub release, with fixed-name copies for the install command and a `latest.json` that RepoBell reads for updates. The notes come from the annotated tag's message. Anyone can download them without a GitHub account.
 
 ## First run
 
@@ -164,6 +164,16 @@ While a check runs, a thin strip under the window header shows "Checking repo-na
 In the tray, "Check now" becomes "Checking 6 of 15…" and is greyed out until the check ends, for timer checks too. Only that item's text changes, so the menu isn't rebuilt per repo. There is no "done" notification, because RepoBell already notifies when there is real news.
 
 RepoBell checks up to 4 repos at the same time, in discovery order, with results kept in that order. Measured on 2026-11-17 with 15 repos: 58 s one after another, 15 s with 4 at once. 4 stays well under SSH's default limit of 10 new connections. There is no setting for it.
+
+## About and updates
+
+Decided 2026-11-17. Full design: `docs/superpowers/specs/2026-11-17-about-and-updates-design.md`.
+
+Settings ends with an About section: the version, one status line, one button, the new version's notes, and links to the source and to GitHub issues. When a new version is ready, the main window footer says "RepoBell 0.2.0 is ready" in blue with a grey dot (blue dots mean team news), and the tray menu gets "Install RepoBell 0.2.0…" above Quit. Both open About. Nothing installs without a click, so the password prompt is never a surprise.
+
+RepoBell checks GitHub at start and every 24 hours, not during the first-run welcome. A failed automatic check stays silent and tries again an hour later. Errors show only after the user pressed a button. There is no switch to turn checks off. Install is off while Update, Undo, a branch delete or Update main runs, so a restart never cuts one in half.
+
+Updates use Tauri's updater plugin, for the .deb and the AppImage. Each package is signed with a key only the release workflow has, and RepoBell refuses a package whose signature or version doesn't match. If the key is lost, installed copies can never update again, so it is backed up in Ramin's password manager. A copy built from source shows its version and doesn't update itself.
 
 ## Design reviews
 

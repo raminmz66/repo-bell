@@ -100,18 +100,21 @@ To build the `.deb` and AppImage locally:
 cd app
 npm run tauri build
 ```
-The packages land in `target/release/bundle/`.
+The packages land in `target/release/bundle/`. Local builds are not signed and don't need the signing key.
 
 To publish a release:
 1. Set the new version in `app/src-tauri/tauri.conf.json`, `crates/core/Cargo.toml`, `app/src-tauri/Cargo.toml` and `app/package.json`.
 2. Commit and merge to `main`.
 3. Tag it and push the tag:
    ```bash
-   git tag vX.Y.Z
+   git tag -a vX.Y.Z -m "What changed, in a few short lines"
    git push origin vX.Y.Z
    ```
+   Use `-a` and a message. The message becomes the release notes and the update notes in the app. A plain tag gives none.
 
-The release workflow checks that the tag matches `tauri.conf.json`, builds the packages and attaches them to a GitHub release.
+The release workflow checks that the tag matches `tauri.conf.json`, builds and signs the packages and attaches them to a GitHub release, with `latest.json` for in-app updates. It needs the `TAURI_SIGNING_PRIVATE_KEY` repo secret.
+
+Don't add a `.deb` dependency without telling users to reinstall: the in-app update runs `dpkg -i`, which doesn't install dependencies, so the update fails for people who lack the new one. If you must add one, say in the release notes to reinstall with the install command.
 
 ---
 
